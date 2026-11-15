@@ -35,8 +35,11 @@ subject CRUD; caregiver relationship grant/list/revoke; consent grant/list/
 withdrawal; activity catalog; session lifecycle and listing; activity start,
 event batch, completion/skip; feeling check-ins and session summaries; subject
 progress, paginated summaries, Twin current/history and reports. AI Buddy returns
-an explicit 503 unavailable response. EEG/webcam inference routes do not pretend
-to exist or return simulated outputs.
+an explicit 503 unavailable response. `GET /health` and `POST /predict` implement
+the EEG artifact/preprocessing contract; an unavailable artifact produces 503,
+and an unreadable or unmappable recording returns HTTP 200 with an explicit
+`Unscored` reason, never a simulated prediction. Webcam inference routes do not
+pretend to exist.
 
 API schemas and endpoint behavior are documented in [`api_integration.md`](api_integration.md).
 The frontend does not yet obtain/send an ID token to these routes. Existing
@@ -59,10 +62,10 @@ object storage; raw EEG and webcam video are not put into Firestore.
 | User/subject/caregiver/consent | Implemented; unit/API tested | Frontend-compatible profile shape, trusted role projection, explicit relationship, transactional consent. |
 | Activities/sessions/CPT | Implemented for CPT; unit/API tested | Transactional lifecycle and idempotent trial docs; deterministic current frontend 6-trial practice/24-trial scored contract. |
 | Check-ins/analytics/reports/Twin | Implemented; unit/API tested | Persisted subject-scoped data, stable cursor ordering, transactional idempotency and version history. |
-| EEG model | Blocked | No `.pth` artifact or training/preprocessing docs found. Metadata path is reserved; no predictions fabricated. |
+| EEG model | Implemented; tested with synthetic recordings | XGBoost artifact and optional bundle load once at startup; BDF/EDF/FIF/SET/MAT v5-v7.3 ingestion, optional Fernet decryption, MAT unit normalization, 19/26/>26-channel harmonization to the TDBRAIN montage, 250 Hz / 1000-sample windows, lowest-amplitude-window fallback, required Eyes Closed plus optional Eyes Open reactivity, full 24-value breakdown, `/health` and `/predict`. Limitations: identity scaler and 0.5 threshold because no scaler/optimal-threshold artifact was supplied; `.pt` is a state_dict without a model class and is not loaded. |
 | Webcam | Blocked | No approved extractor/input contract/consent protocol; raw video not stored. |
 | AI Buddy | Provider-blocked | No approved LLM provider/credential; explicit unavailable response. |
-| Frontend API cutover | Not done | Firebase token injection/provider mapping and deliberate direct-write disablement remain. No frontend source/routes changed. |
+| Frontend API cutover | EEG upload connected; CPT cutover not done | The Firebase participant upload route calls `/predict` with required Eyes Closed and optional Eyes Open files. Firebase token injection/provider mapping and deliberate direct-write disablement remain for CPT and the rest of `/api/v1`. |
 
 ## Validation
 
@@ -101,6 +104,17 @@ object storage; raw EEG and webcam video are not put into Firestore.
   claim roles, unsupported roles failing closed, revoked tokens, and
   cross-user/clinician isolation. Run with `--only auth` alone (no Java needed)
   or together with Firestore via `scripts/run-emulator-tests.ps1`.
+- `tests/test_eeg.py` (31 tests) covers the model/bundle loader, Fernet
+  decryption, MAT v5/v7.3 loading, MAT unit scaling, 19-to-26-channel alias
+  harmonization, channel and duration validation, the training-time
+  `max(abs(window)) * 1e6 < 350 µV` check and lowest-amplitude-window fallback,
+  250 Hz resampling/windowing, optional Eyes Open
+  reactivity, the full 24-value breakdown, `/health`, `/predict`, Unscored
+  responses, corrupt uploads and an unavailable model. These use synthetic Raw
+  arrays and a temporary synthetic XGBoost model; no participant EEG files are
+  read.
+- Latest local run: `python -m pytest -q` -> **180 passed, 84 skipped**;
+  `tests/test_eeg.py` -> **31 passed**.
 - `ruff check`, `ruff format --check`, `compileall` and `pip check` pass.
 - Frontend: `npm run lint`, `typecheck`, `npm test` (Vitest unit tests) and
   `npm run test:e2e` (Playwright smoke tests against a production demo build)

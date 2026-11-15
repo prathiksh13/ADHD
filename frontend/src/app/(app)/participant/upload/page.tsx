@@ -5,15 +5,15 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { participantDemoMeta } from "@/data/demo/participant";
+import { FirebaseEegUpload } from "@/features/eeg/firebase-eeg-upload";
 import { UploadForm } from "@/features/upload/upload-form";
-import { FirebaseUploadUnavailable } from "@/features/firebase/firebase-upload-unavailable";
 import { getFrontendConfig } from "@/lib/config/frontend-config";
 import { getDemoRole } from "@/lib/demo/demo-session-server";
 
 export const metadata: Metadata = {
   title: "Upload EEG",
   description:
-    "Demo EEG upload with client-side file checks and a simulated processing walkthrough.",
+    "Upload Eyes Closed and optional Eyes Open EEG recordings for a research-model ADHD or Control estimate.",
 };
 
 export default async function UploadPage() {
@@ -21,7 +21,7 @@ export default async function UploadPage() {
   const demoRole = await getDemoRole();
 
   if (config.valid && config.provider === "firebase" && !demoRole) {
-    return <FirebaseUploadUnavailable />;
+    return <FirebaseEegUpload />;
   }
 
   return (

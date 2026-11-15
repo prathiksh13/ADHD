@@ -52,9 +52,9 @@ export function ActivityLibrary({
 }: {
   activities: CognitiveActivityDefinition[];
 }) {
-  const availableCount = activities.filter(
-    (activity) => activity.availability === "available",
-  ).length;
+  const activeActivities = activities.filter(
+    (activity) => activity.availability === "available" && Boolean(activity.href),
+  );
 
   return (
     <section aria-labelledby="activity-library-heading" className="space-y-3">
@@ -67,20 +67,17 @@ export function ActivityLibrary({
             Activity library
           </h2>
           <p className="mt-0.5 text-xs text-ink-subtle">
-            Short cognitive activities. Cards marked Available are interactive.
+            Short cognitive activities designed for attention, memory, and executive function.
           </p>
         </div>
         <span className="text-xs text-ink-subtle">
-          {availableCount} available · {activities.length - availableCount}{" "}
-          planned
+          {activeActivities.length} activities available
         </span>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {activities.map((activity) => {
-          const Icon = activityIcons[activity.id];
-          const available =
-            activity.availability === "available" && Boolean(activity.href);
+        {activeActivities.map((activity) => {
+          const Icon = activityIcons[activity.id] ?? Gamepad2;
 
           return (
             <Card key={activity.id} className="flex flex-col">
@@ -88,13 +85,9 @@ export function ActivityLibrary({
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                   <Icon aria-hidden="true" className="size-5" />
                 </span>
-                {available ? (
-                  <Badge tone="brand" dot>
-                    Available
-                  </Badge>
-                ) : (
-                  <Badge tone="neutral">Planned</Badge>
-                )}
+                <Badge tone="brand" dot>
+                  Available
+                </Badge>
               </CardHeader>
 
               <CardContent className="flex-1 space-y-2">
@@ -113,23 +106,14 @@ export function ActivityLibrary({
               </CardContent>
 
               <CardFooter>
-                {available && activity.href ? (
+                {activity.href ? (
                   <ButtonLink href={activity.href} size="sm">
                     Start activity
                     <ArrowRight aria-hidden="true" className="size-3.5" />
                   </ButtonLink>
-                ) : (
-                  <span
-                    aria-disabled="true"
-                    className="inline-flex h-9 cursor-not-allowed items-center rounded-lg border border-line bg-slate-50 px-3 text-sm font-medium text-ink-subtle"
-                  >
-                    Coming soon
-                  </span>
-                )}
+                ) : null}
                 <span className="text-xs text-ink-subtle">
-                  {activity.availability === "available"
-                    ? "Demo activity"
-                    : "Not built yet"}
+                  Interactive task
                 </span>
               </CardFooter>
             </Card>

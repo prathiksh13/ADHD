@@ -8,10 +8,12 @@ verified UID and allowlisted role. The Firebase Admin Firestore repository is
 the backend persistence adapter; no PostgreSQL/SQLAlchemy/Alembic runtime is
 active.
 
-The current Next.js app is not yet connected to the API. It continues to use
-Firebase Web Auth and existing participant-scoped Firestore/demo services. The
-API preserves `users/{uid}` profile shape and writes server-authoritative domain
-records under `subjects/{subjectId}`. It does not write the legacy
+The current Next.js EEG upload screen calls `POST /predict` for transient
+inference. CPT and other participant APIs are not yet connected: those flows
+continue to use Firebase Web Auth and existing participant-scoped
+Firestore/demo services. The API preserves `users/{uid}` profile shape and
+writes server-authoritative domain records under `subjects/{subjectId}`. It does
+not write the legacy
 `users/{uid}/appSessions`, `activityRuns`, `reports`, or `digitalTwin/current`
 paths. Do not enable a frontend API write and its direct Firestore save for the
 same operation. No data migration or Firestore rules deployment is performed.
@@ -22,7 +24,9 @@ same operation. No data migration or Firestore rules deployment is performed.
 |---|---|---|
 | `GET` | `/health/live` | Process liveness. |
 | `GET` | `/health/ready` | Read-only Firestore readiness check; safe 503 when repository is not configured/unavailable. |
-| `GET` | `/api/v1/capabilities` | Reports Firestore/Auth configuration and blocked EEG/webcam/AI Buddy. |
+| `GET` | `/health` | EEG model status: availability, artifact version, threshold (and provenance), 26 expected channels, feature schema and preprocessing settings. |
+| `POST` | `/predict` | Unauthenticated prototype EEG inference. Multipart `restEC_file` (required, Eyes Closed) and `restEO_file` (optional, Eyes Open). Accepts BDF, EDF, FIF, SET and MAT v5-v7.3; Fernet encryption is supported when `EEG_ENCRYPTION_KEY` is configured. Scored responses return prediction/probability/threshold/confidence/window count/EC-EO flag/biomarker highlights and the full 24-value biomarker breakdown. Unreadable, non-EEG or unmappable recordings return HTTP 200 with `status: "Unscored"`, `prediction: "Unscored"`, `probability: null` and a `reason`; unavailable model returns 503. Uploads are processed transiently and not persisted. |
+| `GET` | `/api/v1/capabilities` | Reports Firestore/Auth configuration and actual EEG/webcam/AI Buddy availability. |
 | `GET`, `PATCH` | `/api/v1/users/me` | Verified Firebase UID profile. Patch changes display name only; trusted role is never client-editable. |
 | `GET`, `POST` | `/api/v1/subjects` | Lists authorized subjects or creates participant-owned subject. |
 | `GET`, `PATCH` | `/api/v1/subjects/{subject_id}` | Owner/caregiver-authorized read; owner may change display label. |
@@ -96,9 +100,18 @@ Firebase token provider, typed API adapter, mode/cutover plan and browser-level
 tests. Existing Firestore records are preserved in place; no automatic import,
 copy or delete is performed.
 
-EEG model inference, webcam feature extraction and AI Buddy provider remain
-unavailable for missing model/preprocessing artifacts, approved extractor/
-policy and LLM configuration. Their capability is not simulated.
+EEG inference is available when the configured classifier artifact loads;
+`/health` reports the artifact version, threshold provenance and whether the
+scaler is present. The local XGBoost artifact has no scaler statistics or
+validation-selected threshold, and the saved PyTorch graph encoder has no model
+class definition, so the server uses an identity scaler, a 0.5 threshold and
+the documented hand-crafted 24-feature contract. Webcam feature extraction and
+the AI Buddy provider remain unavailable for missing approved extractor/policy
+and LLM configuration. No capability is simulated.
+
+`/predict` is an intentionally unauthenticated prototype route: it does not
+persist recordings or results, does not associate uploads with a subject, and
+rates/limits and size-caps requests. Do not expose it as a clinical service.
 
 ## Caregiver sharing
 

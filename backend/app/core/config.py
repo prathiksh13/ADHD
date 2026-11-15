@@ -21,8 +21,18 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     firebase_project_id: str | None = None
     firestore_database_id: str = "(default)"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     log_level: str = "INFO"
+    # EEG inference. The model bundle is loaded once during application startup.
+    eeg_model_dir: Path = BACKEND_ROOT.parent / "models"
+    eeg_model_bundle_path: Path | None = None
+    eeg_threshold: float = 0.5
+    eeg_max_upload_bytes: int = 52_428_800  # 50 MiB per uploaded recording
+    eeg_encryption_key: str | None = None
+    eeg_target_sfreq: float = 250.0
+    eeg_window_seconds: float = 4.0
+    eeg_window_overlap: float = 0.5
+    eeg_reject_amplitude_uv: float = 350.0
     # Hardening (see app/core/hardening.py). A limit of 0 disables that limiter.
     max_request_bytes: int = 262_144
     rate_limit_per_minute: int = 240  # per authenticated caller

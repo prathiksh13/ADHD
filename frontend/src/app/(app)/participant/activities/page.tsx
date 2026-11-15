@@ -33,7 +33,7 @@ import { FirebaseActivityLibrary } from "@/features/firebase/firebase-activity-l
 export const metadata: Metadata = {
   title: "Cognitive activities",
   description:
-    "Demo cognitive activity library with one interactive Continuous Performance Task and five planned activities.",
+    "Demo cognitive activity library with eleven interactive attention, memory, and executive function tasks.",
 };
 
 const cptRecords = [
@@ -89,7 +89,7 @@ export default async function ActivitiesPage() {
               Demo activities
             </Badge>
             <span className="text-xs text-ink-subtle">
-              Interactive tasks · in-memory results
+              Interactive tasks · stored on device
             </span>
           </div>
         }
@@ -124,8 +124,7 @@ export default async function ActivitiesPage() {
       <DemoNotice meta={participantDemoMeta} />
 
       <Alert tone="info" title="Eleven activities are ready to try">
-        Every card marked Available starts a short practice, then a scored run.
-        Cards marked Planned do not start a task yet. These are demonstration
+        Every activity starts a short practice, then a scored run. These are demonstration
         tasks, not clinical assessments.
       </Alert>
 
@@ -162,8 +161,7 @@ export default async function ActivitiesPage() {
         </CardContent>
         <CardFooter>
           <p className="text-xs leading-5 text-ink-subtle">
-            Results are demonstration data only and reset when the browser is
-            reloaded.
+            Completed runs and past records are preserved on this device.
           </p>
           <Badge tone="warning">Not clinical</Badge>
         </CardFooter>

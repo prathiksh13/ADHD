@@ -83,7 +83,7 @@ export function ActivityList({
 
       <CardFooter className="flex-wrap">
         <p className="text-xs text-ink-subtle">
-          Try the demo CPT. Other activities are planned.
+          Eleven cognitive activities are available in the activity library.
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link

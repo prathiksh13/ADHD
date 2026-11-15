@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -95,6 +96,35 @@ export function mergeActivityRuns(
     .slice(0, 12);
 }
 
+const CPT_STORAGE_KEY = "attune:cpt-runs";
+
+function loadStoredCptRuns(): CptRunSummary[] {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const raw = window.localStorage.getItem(CPT_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    }
+  } catch {
+    // Ignore storage errors in non-browser environments
+  }
+  return [];
+}
+
+function persistCptRuns(runs: CptRunSummary[]): void {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(CPT_STORAGE_KEY, JSON.stringify(runs));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function ActivitySessionProvider({
   children,
   participantId = DEMO_PARTICIPANT_ID,
@@ -112,20 +142,49 @@ export function ActivitySessionProvider({
   initialRuns?: CptRunSummary[];
   onPersistRun?: (run: CptRunSummary) => Promise<PersistRunOutcome | void>;
 }) {
+  const effectiveInitialRuns = useMemo(() => {
+    if (initialRuns && initialRuns.length > 0) return initialRuns;
+    if (storageMode === "memory") return DEMO_PAST_CPT_RUNS;
+    return [];
+  }, [initialRuns, storageMode]);
+
   const [browserRuns, setBrowserRuns] = useState<CptRunSummary[]>([]);
+
+  useEffect(() => {
+    const stored = loadStoredCptRuns();
+    if (stored.length > 0) {
+      setBrowserRuns(stored);
+    }
+  }, []);
   const [writeStatus, setWriteStatus] = useState<
     Exclude<ActivitySessionContextValue["persistenceStatus"], "disabled" | "not-applicable">
   >("saved");
   const [persistenceMessage, setPersistenceMessage] = useState<string | null>(null);
-  const nextSequence = useRef(1);
+  const nextSequence = useRef(4);
   const persistenceAttemptedRunIds = useRef(new Set<string>());
   const completedEvents = useRef(new WeakMap<CptTrialEvent[], CptRunSummary>());
   const unsyncedRuns = useRef(new Map<string, CptRunSummary>());
   const [unsyncedRunCount, setUnsyncedRunCount] = useState(0);
   const [serverRunIds, setServerRunIds] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const all = [...browserRuns, ...effectiveInitialRuns];
+    let max = 0;
+    for (const r of all) {
+      const match = r.id.match(/DEMO-CPT-(\d+)/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > max) max = n;
+      }
+    }
+    if (max > 0) {
+      nextSequence.current = max + 1;
+    }
+  }, [browserRuns, effectiveInitialRuns]);
+
   const cptRuns = useMemo(
-    () => mergeActivityRuns(initialRuns, browserRuns, serverRunIds),
-    [browserRuns, initialRuns, serverRunIds],
+    () => mergeActivityRuns(effectiveInitialRuns, browserRuns, serverRunIds),
+    [browserRuns, effectiveInitialRuns, serverRunIds],
   );
   const persistenceStatus: ActivitySessionContextValue["persistenceStatus"] =
     storageMode !== "firebase"
@@ -189,7 +248,11 @@ export function ActivitySessionProvider({
     });
     completedEvents.current.set(input.events, run);
 
-    setBrowserRuns((current) => [run, ...current].slice(0, 12));
+    setBrowserRuns((current) => {
+      const next = [run, ...current.filter((r) => r.id !== run.id)].slice(0, 12);
+      persistCptRuns(next);
+      return next;
+    });
 
     if (storageMode === "firebase" && input.mode === "scored") {
       if (cloudSyncEnabled && onPersistRun && !persistenceAttemptedRunIds.current.has(run.id)) {
@@ -204,6 +267,13 @@ export function ActivitySessionProvider({
   const clearCptRuns = useCallback(() => {
     if (storageMode === "memory") {
       setBrowserRuns([]);
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.removeItem(CPT_STORAGE_KEY);
+        }
+      } catch {
+        // Ignore
+      }
     }
   }, [storageMode]);
 

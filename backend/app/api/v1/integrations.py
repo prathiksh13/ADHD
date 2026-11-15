@@ -7,6 +7,8 @@ router = APIRouter(tags=["capabilities"])
 def capabilities(request: Request) -> dict:
     settings = request.app.state.settings
     repository = request.app.state.repository
+    eeg_model = getattr(request.app.state, "eeg_model", None)
+    eeg_available = bool(eeg_model and eeg_model.available)
     return {
         "apiVersion": "v1",
         "databaseConfigured": repository is not None,
@@ -16,8 +18,10 @@ def capabilities(request: Request) -> dict:
             "credentials": "application_default_credentials_required_at_runtime",
         },
         "eeg": {
-            "available": False,
-            "reason": "model_artifact_and_training_preprocessing_not_found",
+            "available": eeg_available,
+            "reason": None if eeg_available else getattr(eeg_model, "reason", "model_not_loaded"),
+            "artifactVersion": getattr(eeg_model, "artifact_version", None),
+            "expectedChannels": getattr(eeg_model, "channels", ()),
         },
         "webcam": {
             "available": False,

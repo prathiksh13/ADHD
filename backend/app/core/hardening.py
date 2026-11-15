@@ -96,9 +96,11 @@ class HardeningMiddleware:
         trust_proxy_headers: bool = False,
         hsts: bool = False,
         clock: Callable[[], float] = time.monotonic,
+        path_max_request_bytes: dict[str, int] | None = None,
     ) -> None:
         self.app = app
         self.max_request_bytes = max_request_bytes
+        self.path_max_request_bytes = path_max_request_bytes or {}
         self.trust_proxy_headers = trust_proxy_headers
         self.hsts = hsts
         self.user_limiter = (
@@ -137,7 +139,7 @@ class HardeningMiddleware:
         for name, value in SECURITY_HEADERS:
             if name not in present:
                 headers.append((name, value))
-        if path.startswith("/api") and b"cache-control" not in present:
+        if (path.startswith("/api") or path == "/predict") and b"cache-control" not in present:
             headers.append((b"cache-control", b"no-store"))
         if self.hsts and HSTS[0] not in present:
             headers.append(HSTS)
@@ -168,6 +170,7 @@ class HardeningMiddleware:
             await send(self._with_security_headers(message, path))
 
         exempt = scope.get("method") == "OPTIONS" or path.startswith(EXEMPT_PATH_PREFIXES)
+        max_request_bytes = self.path_max_request_bytes.get(path, self.max_request_bytes)
 
         if not exempt:
             checks = []
@@ -193,7 +196,7 @@ class HardeningMiddleware:
         declared = headers.get(b"content-length")
         if declared is not None:
             try:
-                too_big = int(declared) > self.max_request_bytes
+                too_big = int(declared) > max_request_bytes
             except ValueError:
                 too_big = True
             if too_big:
@@ -211,7 +214,7 @@ class HardeningMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_request_bytes:
+                if received > max_request_bytes:
                     too_large = True
                     # Stop feeding the application; it will see a disconnect.
                     return {"type": "http.disconnect"}

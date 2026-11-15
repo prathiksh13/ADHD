@@ -110,7 +110,7 @@ export function ActivityResultsView() {
         description="Pick an activity to see the results of its previous scored sessions, newest first. Each activity is listed separately because each one measures something different."
         meta={
           <Badge tone={fromServer ? "success" : "brand"} dot>
-            {fromServer ? "Research backend" : "This browser session"}
+            {fromServer ? "Research backend" : "Stored locally"}
           </Badge>
         }
         actions={
@@ -121,10 +121,10 @@ export function ActivityResultsView() {
         }
       />
 
-      <Alert tone="info" title={fromServer ? "Saved runs" : "Results reset on reload"}>
+      <Alert tone="info" title={fromServer ? "Saved runs" : "Stored activity records"}>
         {fromServer
           ? "These are scored runs saved to the research backend with your consent. The server validated the trials and calculated every value shown. Runs that were not saved (for example without consent) do not appear."
-          : "Results are held in memory for this browser session only, so reloading the page clears them. Practice runs are never recorded."}
+          : "Results are stored on this device, preserving previous scored sessions and recording new runs automatically. Practice runs are never recorded."}
       </Alert>
 
       <div role="group" aria-label="Choose an activity" className="flex flex-wrap gap-2">

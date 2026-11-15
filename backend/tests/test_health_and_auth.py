@@ -59,11 +59,17 @@ def test_profile_patch_cannot_assign_a_role(test_app, participant_headers):
 
 
 def test_unconfigured_integrations_are_reported_without_fake_outputs(test_app, participant_headers):
-    _, client = test_app
+    app, client = test_app
     capabilities = client.get("/api/v1/capabilities")
     assert capabilities.status_code == 200
     body = capabilities.json()
-    assert body["eeg"]["available"] is False
+    assert body["eeg"]["available"] == app.state.eeg_model.available
+    if body["eeg"]["available"]:
+        assert body["eeg"]["reason"] is None
+        assert body["eeg"]["artifactVersion"]
+        assert len(body["eeg"]["expectedChannels"]) == 26
+    else:
+        assert body["eeg"]["reason"]
     assert body["webcam"]["available"] is False
     assert body["aiBuddy"]["available"] is False
 

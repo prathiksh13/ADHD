@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Database, Fingerprint, ListChecks, LogOut, Target, type LucideIcon } from "lucide-react";
+import { ArrowRight, Database, Fingerprint, ListChecks, LogOut, Target, UploadCloud, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
@@ -59,7 +59,7 @@ export function FirebaseParticipantDashboard() {
       <PageHeader
         eyebrow="Participant workspace"
         title={`Welcome, ${account.profile.displayName}`}
-        description="Your authenticated participant account and optional saved CPT summaries. This frontend does not provide EEG analysis, clinical interpretation, or staff access."
+        description="Your authenticated participant account, optional saved CPT summaries, and resting-state EEG ADHD screening. Results are research estimates, not diagnoses."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="success" dot>Firebase account</Badge>
@@ -71,7 +71,11 @@ export function FirebaseParticipantDashboard() {
         }
         actions={
           <>
-            <ButtonLink href="/participant/activities/cpt">
+            <ButtonLink href="/participant/upload">
+              <UploadCloud aria-hidden="true" className="size-4" />
+              Upload EEG
+            </ButtonLink>
+            <ButtonLink href="/participant/activities/cpt" variant="outline">
               <Target aria-hidden="true" className="size-4" />
               Open the CPT demo
             </ButtonLink>
@@ -109,11 +113,10 @@ export function FirebaseParticipantDashboard() {
         </Alert>
       ) : null}
 
-      <Alert tone="info" title="Participant account data only">
-        This workspace shows your authenticated profile and CPT demo records.
-        There are no EEG recordings, signal measurements, diagnoses, model
-        predictions, clinician permissions, or researcher permissions connected
-        to this account.
+      <Alert tone="info" title="EEG ADHD screening available">
+        Upload an EEG recording for a research-model ADHD or Control estimate.
+        Files are processed transiently and are not saved to this account.
+        Results are not diagnoses.
       </Alert>
 
       <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -196,11 +199,20 @@ export function FirebaseParticipantDashboard() {
                 {account.profile.cloudSyncEnabled ? "Opted in" : "Not syncing"}
               </Badge>
             </div>
+            <div className="flex items-start justify-between gap-3 border-b border-line py-3">
+              <div>
+                <p className="text-sm font-medium text-ink">EEG screening</p>
+                <p className="mt-0.5 text-xs leading-5 text-ink-subtle">
+                  EEG files are analyzed transiently; files and results are not saved.
+                </p>
+              </div>
+              <Badge tone="success">Available</Badge>
+            </div>
             <div className="flex items-start justify-between gap-3 py-3 last:pb-0">
               <div>
-                <p className="text-sm font-medium text-ink">EEG and staff data</p>
+                <p className="text-sm font-medium text-ink">Staff data</p>
                 <p className="mt-0.5 text-xs leading-5 text-ink-subtle">
-                  No raw EEG, clinician roster, or researcher records are available.
+                  No clinician roster or researcher records are available.
                 </p>
               </div>
               <Badge tone="outline">Unavailable</Badge>

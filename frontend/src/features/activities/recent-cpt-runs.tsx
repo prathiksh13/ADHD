@@ -38,7 +38,7 @@ export function RecentCptRuns() {
             ? "Recent scored run summaries saved to the research backend or held in this browser session. The backend keeps the trial events of saved runs."
             : isFirebase
             ? "Recent scored run summaries available to this account or browser session. Firebase stores summary metrics only, never raw trial events."
-            : "Completed scored runs in this browser session. These records live in memory and reset when the page is reloaded."}
+            : "Completed scored runs and past records preserved on this device."}
         </CardDescription>
       </CardHeader>
 

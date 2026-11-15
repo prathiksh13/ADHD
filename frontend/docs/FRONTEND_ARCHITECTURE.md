@@ -198,8 +198,11 @@ The demo participant upload flow uses `DemoSessionProvider` and typed
 `DemoUploadSession` records. It stores file metadata, consent timestamp, and
 simulated stage progress in memory only; file contents are never read.
 
-Firebase mode leaves EEG upload unavailable and stores no EEG session or file.
-Its `appSessions` documents describe completed CPT application workflows only.
+Firebase mode provides transient resting-state EEG screening through the
+`/participant/upload` route. It posts the required Eyes Closed file and optional
+Eyes Open file to the FastAPI `/predict` endpoint and stores no EEG session,
+file, or result. Its `appSessions` documents describe completed CPT application
+workflows only.
 Firebase Auth creates or validates `users/{uid}` with a fixed participant role.
 The `cloudSyncEnabled` preference defaults to false and gates new CPT summary,
 application-session, report-summary, and Digital Twin snapshot writes. Saved

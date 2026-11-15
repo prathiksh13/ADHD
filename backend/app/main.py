@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.v1.eeg import router as eeg_router
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
 from app.auth.dependencies import TokenVerifier
@@ -21,6 +22,7 @@ from app.core.errors import ApiError
 from app.core.hardening import HardeningMiddleware
 from app.core.logging_config import configure_logging
 from app.core.metrics import Metrics
+from app.eeg.artifacts import load_eeg_model
 from app.repositories.firestore import FirestoreRepository, Repository
 from app.services.catalog import seed_catalog
 
@@ -41,6 +43,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Load model weights once for the lifetime of the process, never per request.
+        try:
+            app.state.eeg_model = load_eeg_model(settings)
+        except Exception as exc:  # defensive: artifact loading must not stop the API
+            app.state.eeg_model = None
+            logger.warning("eeg_model_initialization_failed error_type=%s", type(exc).__name__)
         if store is not None:
             try:
                 seed_catalog(store)
@@ -59,6 +67,7 @@ def create_app(
     app.state.settings = settings
     app.state.repository = store
     app.state.catalog_initialized = False
+    app.state.eeg_model = None
     app.state.metrics = Metrics()
     app.state.token_verifier = token_verifier or verify_firebase_id_token
 
@@ -116,20 +125,21 @@ def create_app(
         rate_limit_ip_per_minute=settings.rate_limit_ip_per_minute,
         trust_proxy_headers=settings.trust_proxy_headers,
         hsts=settings.environment.lower() == "production",
+        # Allow two recordings (EC + EO) plus multipart overhead; each file is
+        # still capped individually by the endpoint.
+        path_max_request_bytes={"/predict": settings.eeg_max_upload_bytes * 2 + 1_048_576},
     )
 
     @app.exception_handler(ApiError)
     async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.code,
-                    "message": exc.message,
-                    "requestId": getattr(request.state, "request_id", None),
-                }
-            },
-        )
+        error: dict = {
+            "code": exc.code,
+            "message": exc.message,
+            "requestId": getattr(request.state, "request_id", None),
+        }
+        if exc.details:
+            error["details"] = exc.details
+        return JSONResponse(status_code=exc.status_code, content={"error": error})
 
     @app.exception_handler(RequestValidationError)
     async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -185,6 +195,7 @@ def create_app(
         )
 
     app.include_router(health_router)
+    app.include_router(eeg_router)
 
     if settings.metrics_token:
         # Off unless a token is configured; not part of the public API schema.

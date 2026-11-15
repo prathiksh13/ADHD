@@ -176,7 +176,8 @@ EEG data; use an account and synthetic data owned by the project developer.
   before testing Email/Password and Google flows.
 - Authenticated browser persistence tests have not been performed from this
   workspace.
-- EEG upload, Firebase Storage, EEG processing, model inference, production
+- Transient EEG upload and model inference are implemented through the FastAPI
+  `/predict` endpoint; Firebase Storage, persistent EEG processing, production
   authentication authorization, and clinician/researcher data access are not
   implemented.
 - Firebase records contain summary metrics only; saved activity detail does

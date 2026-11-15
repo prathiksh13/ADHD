@@ -64,14 +64,7 @@ export const demoCognitiveActivities: CognitiveActivityDefinition[] = [
     availability: "available",
     href: "/participant/activities/planning-puzzle",
   },
-  {
-    id: "selective-attention",
-    title: "Selective Attention",
-    description:
-      "Find target shapes among distractors while the visual field becomes progressively busier.",
-    estimatedDurationMinutes: 5,
-    availability: "planned",
-  },
+
   {
     id: "n-back",
     title: "N-back",
@@ -107,13 +100,5 @@ export const demoCognitiveActivities: CognitiveActivityDefinition[] = [
     estimatedDurationMinutes: 5,
     availability: "available",
     href: "/participant/activities/multiple-object-tracking",
-  },
-  {
-    id: "focus-arena",
-    title: "Focus Arena",
-    description:
-      "A playful sustained-attention game designed to make practice feel lighter and more approachable.",
-    estimatedDurationMinutes: 6,
-    availability: "planned",
   },
 ];

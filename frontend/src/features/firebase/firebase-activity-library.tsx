@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ListChecks, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,7 @@ export function FirebaseActivityLibrary({
       <PageHeader
         eyebrow="Participant workspace"
         title="Cognitive activities"
-        description="The CPT remains a frontend demonstration task. Scored summaries can be saved to your Firebase account only when cloud synchronization is enabled."
+        description="Interactive cognitive activities designed for attention, memory, and executive function. Scored runs are saved to your account and device storage."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="warning" dot>Demonstration task</Badge>
@@ -31,10 +31,30 @@ export function FirebaseActivityLibrary({
           </div>
         }
         actions={
-          <ButtonLink href="/participant" variant="outline">
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            Account overview
-          </ButtonLink>
+          <>
+            <ButtonLink
+              href="/participant/activities/results"
+              variant="outline"
+            >
+              <ListChecks aria-hidden="true" className="size-4" />
+              Results by activity
+            </ButtonLink>
+            <ButtonLink
+              href="/participant/activities/history"
+              variant="outline"
+            >
+              <ListChecks aria-hidden="true" className="size-4" />
+              Activity history
+            </ButtonLink>
+            <ButtonLink href="/participant/progress" variant="outline">
+              <TrendingUp aria-hidden="true" className="size-4" />
+              Progress
+            </ButtonLink>
+            <ButtonLink href="/participant" variant="outline">
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Account overview
+            </ButtonLink>
+          </>
         }
       />
 
