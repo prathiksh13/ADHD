@@ -171,6 +171,13 @@ class HardeningMiddleware:
 
         exempt = scope.get("method") == "OPTIONS" or path.startswith(EXEMPT_PATH_PREFIXES)
         max_request_bytes = self.path_max_request_bytes.get(path, self.max_request_bytes)
+        for template, limit in self.path_max_request_bytes.items():
+            if "{subject_id}" in template:
+                prefix, suffix = template.split("{subject_id}")
+                if path.startswith(prefix) and path.endswith(suffix):
+                    middle = path[len(prefix) : len(path) - len(suffix)]
+                    if middle and "/" not in middle:
+                        max_request_bytes = limit
 
         if not exempt:
             checks = []

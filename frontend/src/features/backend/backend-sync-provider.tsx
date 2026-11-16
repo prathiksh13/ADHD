@@ -15,6 +15,7 @@ import { createBackendClient } from "@/lib/backend/client";
 import {
   createBackendSyncController,
   describeSyncError,
+  isBackendSetupError,
   type BackendSyncSnapshot,
   type PersistOutcome,
 } from "@/lib/backend/sync-controller";
@@ -52,6 +53,7 @@ interface BackendSyncContextValue {
   status: BackendSyncStatus;
   /** User-safe message for the last load failure. */
   loadError: string | null;
+  setupRequired: boolean;
   consent: BackendSyncSnapshot["consent"];
   serverRuns: CptRunSummary[];
   /** Server-calculated Digital Twin, version history, reports and sessions. */
@@ -182,6 +184,7 @@ export function BackendSyncProvider({
   const [snapshot, setSnapshot] = useState<BackendSyncSnapshot | null>(null);
   const [status, setStatus] = useState<BackendSyncStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [setupRequired, setSetupRequired] = useState(false);
   const [consentBusy, setConsentBusy] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
@@ -190,6 +193,7 @@ export function BackendSyncProvider({
 
   const refresh = useCallback(async () => {
     const version = (loadVersion.current += 1);
+    setStatus("loading");
 
     try {
       const next = await controller.load();
@@ -197,11 +201,13 @@ export function BackendSyncProvider({
         setSnapshot(next);
         setStatus("ready");
         setLoadError(null);
+        setSetupRequired(false);
       }
     } catch (error) {
       if (version === loadVersion.current) {
         setStatus("error");
         setLoadError(describeSyncError(error));
+        setSetupRequired(isBackendSetupError(error));
       }
     }
   }, [controller]);
@@ -519,6 +525,7 @@ export function BackendSyncProvider({
     () => ({
       status,
       loadError,
+      setupRequired,
       consent: snapshot?.consent ?? NO_CONSENT,
       serverRuns: snapshot?.serverRuns ?? [],
       goNoGoRuns: snapshot?.goNoGoRuns ?? [],
@@ -567,6 +574,7 @@ export function BackendSyncProvider({
     [
       status,
       loadError,
+      setupRequired,
       snapshot,
       reportBusy,
       reportError,

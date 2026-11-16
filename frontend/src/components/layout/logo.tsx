@@ -61,7 +61,7 @@ export function Logo({
               onDark ? "text-white/50" : "text-ink-subtle",
             )}
           >
-            Research workspace
+            Personal workspace
           </span>
         ) : null}
       </span>

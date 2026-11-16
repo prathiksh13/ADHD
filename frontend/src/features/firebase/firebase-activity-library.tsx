@@ -26,7 +26,7 @@ export function FirebaseActivityLibrary({
         description="Interactive cognitive activities designed for attention, memory, and executive function. Scored runs are saved to your account and device storage."
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="warning" dot>Demonstration task</Badge>
+            <Badge tone="warning" dot>Research activity</Badge>
             <span className="text-xs text-ink-subtle">No clinical interpretation</span>
           </div>
         }

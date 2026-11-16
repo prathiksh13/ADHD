@@ -174,7 +174,7 @@ export function CptSummary({
           </dl>
 
           <p className="text-xs leading-5 text-ink-subtle">
-            These are frontend-calculated CPT demonstration metrics, not a
+            These are frontend-calculated CPT activity metrics, not a
             clinical score or diagnostic result.
           </p>
         </section>
@@ -215,7 +215,7 @@ export function CptSummary({
       <CardFooter className="flex-wrap">
         <p className="text-xs text-ink-subtle">
           {mode !== "scored"
-            ? "Practice results are shown for review and are not saved."
+            ? "Practice results appear in activity history and are excluded from scored progress. Account saving follows your Firebase saving preference."
             : toBackend
               ? persistenceStatus === "saving"
                 ? "Saving to the research backend…"

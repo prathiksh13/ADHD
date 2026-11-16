@@ -37,8 +37,22 @@ and [`../docs/api_integration.md`](../docs/api_integration.md).
    ```
 
 3. For a developer-owned Firebase project, configure Application Default
-   Credentials (for example, `gcloud auth application-default login`). No local
-   database or migration step is required.
+   Credentials. Google user sign-in for Firebase Authentication requires a
+   **Desktop app OAuth client from your project**, rather than the Cloud CLI's
+   default OAuth client. Keep the downloaded client file outside this repository:
+
+   ```powershell
+   gcloud auth application-default login --client-id-file="C:\secure-location\desktop-client.json" --project=YOUR_FIREBASE_PROJECT_ID
+   ```
+
+   The signed-in Google account must have access to the same project configured
+   by the frontend and `backend/.env`. If the Console says "You need additional
+   access", use the project owner's account or obtain access from the owner;
+   changing browser sign-in alone does not grant project permissions. Never
+   weaken token revocation checks or Firestore rules to bypass this requirement.
+   Alternatively, use an approved workload identity or server credential as
+   described above. No local database or migration step is required. See
+   [Firebase's local user-credential guidance](https://firebase.google.com/docs/admin/setup#test_with_gcloud_end_user_credentials).
 
 4. Start FastAPI from `backend/`:
 
@@ -140,6 +154,25 @@ curl.exe -X POST http://127.0.0.1:8000/predict `
   -F "restEC_file=@sub-01_task-restEC_eeg.bdf" `
   -F "restEO_file=@sub-01_task-restEO_eeg.bdf"
 ```
+
+## Cross-modal session analysis
+
+`POST /api/sessions/analyze` requires a verified Firebase bearer token and accepts
+derived session data only. The EEG object accepts the model probability, predicted
+class, frontal/central theta-beta ratios, frontal alpha asymmetry, spectral
+entropy and top SHAP features. The activity object accepts task type, accuracy,
+mean reaction time, reaction-time variability, omission/commission errors and
+block progression. The webcam object accepts focus percentage, off-screen
+episodes with root cause/recovery latency, blink rate/timestamps, alert
+timestamps and an emotion timeline. EEG epoch timestamps may be top-level or
+nested under `eeg`; session IDs and timestamps are optional.
+
+The response contains an executive summary, EEG artifact/cleanliness analysis, a
+descriptive cross-modal phenotype and concordance matrix, minute-level overlay
+data, distraction breakdown by root cause/recovery speed and non-diagnostic
+recommendations. The route is stateless: it does not persist results, accept raw
+video/audio, or establish a diagnosis. The body is capped at 2 MiB; the generic
+limit still applies to other routes.
 
 ## Checks
 

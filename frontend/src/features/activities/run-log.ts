@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { captureActivityTelemetry, clearActivityTelemetry } from "@/features/attention/telemetry-registry";
 import {
   LOCAL_CELLS,
   type LocalSummaries,
@@ -8,7 +9,7 @@ import {
   type ResultRow,
 } from "@/features/activities/activity-results";
 
-const STORAGE_KEY = "attune:activity-run-log";
+
 
 type Log = Partial<Record<ResultActivityId, ResultRow[]>>;
 
@@ -30,22 +31,12 @@ function flattenLog(targetLog: Log): LoggedRunItem[] {
   );
 }
 
-function persistLog(data: Log): void {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }
-  } catch {
-    // Ignore storage errors in non-browser environments or when storage is restricted
-  }
-}
-
 const EMPTY_ALL: LoggedRunItem[] = [];
 const EMPTY: ResultRow[] = [];
 
 let log: Log = {};
 let cachedAllRuns: LoggedRunItem[] = EMPTY_ALL;
-let isInitialized = false;
+let scope = "unscoped";
 const listeners = new Set<() => void>();
 
 function updateLogAndNotify(nextLog: Log): void {
@@ -54,34 +45,17 @@ function updateLogAndNotify(nextLog: Log): void {
   listeners.forEach((listener) => listener());
 }
 
-function ensureClientInitialized(): void {
-  if (isInitialized || typeof window === "undefined" || !window.localStorage) return;
-  isInitialized = true;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Log;
-      if (parsed && typeof parsed === "object") {
-        updateLogAndNotify(parsed);
-      }
-    }
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-// Ensure storage is initialized on client
-if (typeof window !== "undefined") {
-  setTimeout(ensureClientInitialized, 0);
-}
-
 export function recordRun<K extends ResultActivityId>(
   activity: K,
   id: string,
   summary: LocalSummaries[K],
+  mode: "practice" | "scored" = "scored",
 ): void {
+  const attentionTelemetry = captureActivityTelemetry(activity, id);
   const row: ResultRow = {
+    ...(attentionTelemetry ? { attentionTelemetry } : {}),
     id,
+    mode,
     at: new Date().toISOString(),
     cells: (LOCAL_CELLS[activity] as (summary: LocalSummaries[K]) => string[])(summary),
   };
@@ -89,21 +63,51 @@ export function recordRun<K extends ResultActivityId>(
   const currentRuns = log[activity] ?? [];
   const updatedRuns = [row, ...currentRuns.filter((existing) => existing.id !== id)];
   const nextLog = { ...log, [activity]: updatedRuns };
-  persistLog(nextLog);
+
   updateLogAndNotify(nextLog);
 }
 
-export function clearRunLog(): void {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // Ignore
+export function clearRunLog(): void { updateLogAndNotify({}); }
+export function getLoggedRuns(): LoggedRunItem[] { return cachedAllRuns; }
+
+export function setRunLogScope(nextScope: string): void {
+  if (scope !== nextScope) {
+    scope = nextScope;
+    clearActivityTelemetry();
+    clearRunLog();
+    eegRuns = [];
+    listeners.forEach((listener) => listener());
   }
-  updateLogAndNotify({});
 }
 
+export function markRunSaved(id: string, serverId?: string | null): void {
+  if (!serverId) return;
+  const next: Log = {};
+  for (const [activity, rows] of Object.entries(log)) {
+    next[activity as ResultActivityId] = rows?.map((row) => row.id === id ? { ...row, serverId } : row);
+  }
+  updateLogAndNotify(next);
+}
+
+export interface EegRun {
+  id: string;
+  at: string;
+  label: string;
+  result: unknown;
+  saved: boolean;
+}
+let eegRuns: EegRun[] = [];
+const EMPTY_EEG: EegRun[] = [];
+export function recordEegRun(run: EegRun, ownerId?: string) {
+  if (ownerId && ownerId !== scope) return false;
+  const existing = eegRuns.find((r) => r.id === run.id);
+  if (existing) return; // Preserve the transient signal preview when loading a saved summary.
+  eegRuns = [run, ...eegRuns.filter((r) => r.id !== run.id)].slice(0, 30);
+  listeners.forEach((listener) => listener());
+}
+export function useEegRuns() {
+  return useSyncExternalStore(subscribe, () => eegRuns, () => EMPTY_EEG);
+}
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);

@@ -31,16 +31,17 @@ export function ServerDigitalTwinCard() {
         </div>
         <CardDescription>
           Calculated by the server from runs you saved after granting consent. Each update creates a
-          new version; earlier versions are kept. Descriptive CPT measurements only — not a
+          new version; earlier versions are kept. Descriptive activity measurements only — not a
           diagnosis or a learned model.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <TwinSummary
+          showActivityLinks
           loading={status === "loading"}
           twin={twin}
           twinHistory={twinHistory}
-          emptyMessage="No runs have been saved to the research backend yet. Grant consent, then complete a scored CPT run; the server profile appears here once at least one run is saved, and trend figures need two or more."
+          emptyMessage="No runs have been saved to the research backend yet. Grant consent, then complete a scored activity; the profile appears after your first saved run. Changes need two comparable runs of the same activity."
         />
       </CardContent>
     </Card>

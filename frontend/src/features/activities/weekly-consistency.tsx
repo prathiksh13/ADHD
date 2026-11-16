@@ -36,7 +36,7 @@ export function WeeklyConsistency({
           <p className="font-mono text-2xl font-semibold tracking-tight text-ink">
             {formatDuration(totalMinutes)}
           </p>
-          <span className="text-xs text-ink-subtle">total · demo</span>
+          <span className="text-xs text-ink-subtle">total</span>
         </div>
 
         <div

@@ -77,7 +77,7 @@ export function FirebaseParticipantDashboard() {
             </ButtonLink>
             <ButtonLink href="/participant/activities/cpt" variant="outline">
               <Target aria-hidden="true" className="size-4" />
-              Open the CPT demo
+              Open the CPT
             </ButtonLink>
             <ButtonLink href="/participant/sessions" variant="outline">
               <Database aria-hidden="true" className="size-4" />
@@ -144,7 +144,7 @@ export function FirebaseParticipantDashboard() {
           value={latestRun ? `${latestRun.trialCount} trials` : "—"}
           detail={
             latestRun
-              ? `${latestRun.accuracyPercent ?? "—"}% accuracy; CPT demo result.`
+              ? `${latestRun.accuracyPercent ?? "—"}% accuracy; CPT activity result.`
               : "Complete a scored CPT run to see a summary."
           }
         />
@@ -212,7 +212,7 @@ export function FirebaseParticipantDashboard() {
               <div>
                 <p className="text-sm font-medium text-ink">Staff data</p>
                 <p className="mt-0.5 text-xs leading-5 text-ink-subtle">
-                  No clinician roster or researcher records are available.
+                  Your account contains only your own activity and session records.
                 </p>
               </div>
               <Badge tone="outline">Unavailable</Badge>

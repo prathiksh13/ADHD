@@ -1,4 +1,4 @@
-export type DataProviderMode = "demo" | "remote" | "firebase";
+export type DataProviderMode = "firebase";
 
 export interface FirebaseWebConfig {
   apiKey: string;
@@ -82,15 +82,15 @@ export function parseFrontendConfig(
   environment: FrontendEnvironment,
 ): FrontendConfig {
   const rawProvider = environment.NEXT_PUBLIC_DATA_PROVIDER?.trim().toLowerCase();
-  const provider = rawProvider || "demo";
+  const provider = rawProvider || "firebase";
 
-  if (provider !== "demo" && provider !== "remote" && provider !== "firebase") {
+  if (provider !== "firebase") {
     return {
       valid: false,
       provider: null,
       apiBaseUrl: null,
       error:
-        "NEXT_PUBLIC_DATA_PROVIDER must be 'demo', 'firebase', or 'remote'. No provider was selected.",
+        "NEXT_PUBLIC_DATA_PROVIDER must be 'firebase'. Configure your Firebase Web app to sign in.",
     };
   }
 
@@ -124,7 +124,7 @@ export function parseFrontendConfig(
 
   // Firebase mode may also use the FastAPI backend (Firebase identity + API
   // persistence). The base URL is optional there, but if given it must be valid.
-  if ((provider === "remote" || provider === "firebase") && parsedApiBaseUrl.error) {
+  if (parsedApiBaseUrl.error) {
     return {
       valid: false,
       provider: null,
@@ -137,7 +137,7 @@ export function parseFrontendConfig(
     valid: true,
     provider,
     apiBaseUrl:
-      provider === "remote" || provider === "firebase"
+      provider === "firebase"
         ? parsedApiBaseUrl.value
         : null,
     firebaseConfig:

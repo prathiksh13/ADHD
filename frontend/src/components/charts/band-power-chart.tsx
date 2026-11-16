@@ -55,7 +55,7 @@ export function BandPowerChart({ data }: { data: BandPowerPoint[] }) {
               fontSize: 12,
             }}
             labelStyle={{ color: chartColors.ink, fontWeight: 600 }}
-            formatter={(value) => [`${value}%`, "Relative power (demo)"]}
+            formatter={(value) => [`${value}%`, "Relative power"]}
           />
           <Bar
             dataKey="relativePower"

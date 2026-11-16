@@ -71,6 +71,12 @@ export class ConsentRequiredError extends Error {
   }
 }
 
+export function isBackendSetupError(error: unknown): boolean {
+  return error instanceof ApiClientError && [
+    "firebase_project_not_configured", "firebase_credentials_unavailable", "firestore_not_configured",
+  ].includes(error.backendCode ?? "");
+}
+
 export interface BackendSyncSnapshot {
   /** Null until the participant first grants consent; nothing is created before that. */
   subjectId: string | null;
@@ -147,6 +153,12 @@ export function describeSyncError(error: unknown): string {
   }
 
   if (error instanceof ApiClientError) {
+    if (isBackendSetupError(error)) {
+      return "The research server's Firebase connection is not configured. Saved records cannot load until the server's project and Firebase Admin credentials are set up. Current-visit results are still available.";
+    }
+    if (error.backendCode === "firestore_unavailable") {
+      return "The research server cannot access its Firestore database. Saved records could not be refreshed; previously loaded and current-visit results remain available.";
+    }
     if (error.code === "auth-token-unavailable") {
       return "Sign in again to save to the research backend.";
     }

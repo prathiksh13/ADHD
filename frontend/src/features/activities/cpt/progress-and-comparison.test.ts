@@ -11,7 +11,7 @@ import {
   getComparableParticipantIds,
   getEligibleCptRuns,
   isEligibleCptRun,
-} from "@/features/clinician/clinician-comparison-data";
+} from "@/features/activities/cpt/run-comparison";
 import type { CptRunSummary } from "@/types";
 
 function run(

@@ -87,7 +87,7 @@ def test_no_responses_withhold_the_error_metrics():
     assert metrics["ratio_variability"] is None
 
 
-def test_end_to_end_server_scored_and_kept_out_of_the_twin(test_app, participant_headers):
+def test_end_to_end_server_scored_and_included_in_the_activity_twin(test_app, participant_headers):
     _, client = test_app
     client.get("/api/v1/users/me", headers=participant_headers)
     subject = _create_subject(client, participant_headers)
@@ -106,7 +106,8 @@ def test_end_to_end_server_scored_and_kept_out_of_the_twin(test_app, participant
     assert summaries[0]["calculationVersion"] == "backend-time-perception-scoring-v1"
 
     twin = client.get(f"/api/v1/subjects/{subject['id']}/digital-twin", headers=participant_headers).json()
-    assert twin["version"] == 0 and twin["status"] == "insufficient_data"
+    assert twin["version"] == 1 and twin["status"] == "insufficient_data"
+    assert twin["profile"]["activity_profiles"][0]["run_count"] == 1
 
 
 def test_a_browser_cannot_change_the_target_duration(test_app, participant_headers):

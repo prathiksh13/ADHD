@@ -55,6 +55,7 @@ class PreprocessedRecording:
     sfreq: float
     windows_analyzed: int
     windows_rejected: int
+    amplitude_fallback_used: bool = False
 
 
 def load_recording(path: Path) -> mne.io.BaseRaw:
@@ -165,7 +166,8 @@ def preprocess_raw(
         if float(np.max(np.abs(window)) * 1e6) < amplitude_limit_uv:
             accepted.append(window)
 
-    if allow_low_amplitude_fallback and len(accepted) < minimum_windows:
+    fallback_used = allow_low_amplitude_fallback and len(accepted) < minimum_windows
+    if fallback_used:
         if not all_windows:
             raise EegValidationError(
                 "No finite EEG windows were available for feature extraction.",
@@ -187,6 +189,7 @@ def preprocess_raw(
 
     return PreprocessedRecording(
         windows=tuple(accepted),
+        amplitude_fallback_used=fallback_used,
         sfreq=sfreq,
         windows_analyzed=len(accepted),
         windows_rejected=max(0, len(all_windows) - len(accepted)),

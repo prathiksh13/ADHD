@@ -1,7 +1,6 @@
-export type WorkspaceRole = "participant" | "caregiver" | "clinician" | "researcher";
+export type WorkspaceRole = "participant";
 
-export interface DemoMeta {
-  isDemo: true;
+export interface RecordProvenance {
   label: string;
   note: string;
   snapshotDate: string;
@@ -21,7 +20,6 @@ export interface EegSession {
   signalQuality: number;
   focusIndex: number | null;
   status: SessionStatus;
-  isDemo: true;
 }
 
 export interface FocusTrendPoint {
@@ -77,7 +75,7 @@ export interface DashboardStat {
 }
 
 export interface ParticipantDashboard {
-  meta: DemoMeta;
+  meta: RecordProvenance;
   participant: ParticipantProfile;
   stats: DashboardStat[];
   focusTrend: FocusTrendPoint[];
@@ -114,7 +112,7 @@ export interface ReviewQueueItem {
 }
 
 export interface ClinicianOverview {
-  meta: DemoMeta;
+  meta: RecordProvenance;
   roster: ClinicianParticipant[];
   reviewQueue: ReviewQueueItem[];
 }
@@ -207,7 +205,7 @@ export interface ProvenanceRecord {
 }
 
 export interface ResearchOverview {
-  meta: DemoMeta;
+  meta: RecordProvenance;
   models: ModelEvaluation[];
   datasets: ResearchDataset[];
   experiments: ResearchExperiment[];
@@ -225,7 +223,7 @@ export type ProcessingStageId =
   | "features"
   | "review";
 
-export interface DemoUploadSession {
+export interface UploadSessionMetadata {
   id: string;
   fileName: string;
   fileSizeBytes: number;
@@ -235,7 +233,6 @@ export interface DemoUploadSession {
   consentAcceptedAt: string;
   status: UploadSessionStatus;
   completedStageIds: ProcessingStageId[];
-  isDemo: true;
 }
 
 export type CognitiveActivityId =
@@ -303,11 +300,11 @@ export interface CptMetrics {
 }
 
 export interface CptRunSummary extends CptMetrics {
+  attentionTelemetry?: import("@/features/attention/attention-types").SessionTelemetrySummary;
   id: string;
   participantId: string;
   activityId: "cpt";
   mode: "practice" | "scored";
   completedAt: string;
   events: CptTrialEvent[];
-  isDemo: true;
 }

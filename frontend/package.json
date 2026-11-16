@@ -11,11 +11,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test:e2e": "npx --yes firebase-tools@15.34.2 emulators:exec --config firebase.live.json --only auth,firestore --project demo-attune-live \"playwright test --config playwright.direct.config.ts\"",
     "test:rules": "npx --yes firebase-tools@15.34.2 emulators:exec --config firebase.rules-test.json --only firestore --project demo-attune-rules \"vitest run --config vitest.rules.config.mts\"",
-    "test:e2e:live": "npx --yes firebase-tools@15.34.2 emulators:exec --config firebase.live.json --only auth,firestore --project demo-attune-live \"playwright test --config playwright.live.config.ts\""
+    "test:e2e:live": "npx --yes firebase-tools@15.34.2 emulators:exec --config firebase.live.json --only auth,firestore --project demo-attune-live \"playwright test --config playwright.live.config.ts\"",
+    "test:e2e:attention": "npx --yes firebase-tools@15.34.2 emulators:exec --config firebase.live.json --only auth,firestore --project demo-attune-live \"playwright test --config playwright.attention.config.ts\"",
+    "predev": "node scripts/prepare-vision-logs.mjs",
+    "prebuild": "node scripts/prepare-vision-logs.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.3",
     "firebase": "^11.10.0",
     "lucide-react": "^1.61.0",
     "next": "16.4.3",

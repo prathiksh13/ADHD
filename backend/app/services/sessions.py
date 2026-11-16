@@ -520,7 +520,7 @@ def add_cpt_events(repo, user, session_id, assignment_id, request_events):
     return {"accepted_count": accepted, "duplicate_count": duplicates, "total_event_count": total}
 
 
-def _finish_activity(repo, user, session_id, assignment_id, skip=False):
+def _finish_activity(repo, user, session_id, assignment_id, skip=False, attention_telemetry=None):
     sid, s, sp = _context(repo, user, session_id)
     require_active_consent(repo, sid, "research")
     if s.status != "active":
@@ -589,11 +589,16 @@ def _finish_activity(repo, user, session_id, assignment_id, skip=False):
                         "metrics": metrics,
                         "data_provenance": provenance,
                         "calculation_version": version,
+                        "configuration_version": aa.configuration_snapshot.get("configuration_version"),
                         "created_at": now,
                     },
                 )
             newstatus = "completed"
-        tx.update(ap, {"status": newstatus, "completed_at": now, "updated_at": now})
+        update = {"status": newstatus, "completed_at": now, "updated_at": now}
+        if attention_telemetry is not None and not skip:
+            # Client-derived observations: excluded from scoring, diagnoses and caregiver responses.
+            update["attention_telemetry"] = attention_telemetry
+        tx.update(ap, update)
         if finished:
             tx.update(sp, {"status": "completed", "completed_at": now, "updated_at": now})
             _audit(
@@ -618,21 +623,15 @@ def _finish_activity(repo, user, session_id, assignment_id, skip=False):
 
     repo.run_transaction(f)
     latest = repo.get(sp)
-    if (
-        latest
-        and latest.status == "completed"
-        and not skip
-        and a.mode == "scored"
-        and a.activity_code == "cpt"
-    ):
+    if latest and not skip and a.mode == "scored":
         from app.services.digital_twin import rebuild_digital_twin
 
         rebuild_digital_twin(repo, UUID(sid), user.id)
     return _payload(repo, sid, latest)
 
 
-def complete_activity(repo, user, session_id, assignment_id):
-    return _finish_activity(repo, user, session_id, assignment_id)
+def complete_activity(repo, user, session_id, assignment_id, attention_telemetry=None):
+    return _finish_activity(repo, user, session_id, assignment_id, attention_telemetry=attention_telemetry)
 
 
 def skip_activity(repo, user, session_id, assignment_id):

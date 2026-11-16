@@ -24,7 +24,7 @@ export function RecentSessionsTable({
         <div className="space-y-1">
           <CardTitle>Recent sessions</CardTitle>
           <CardDescription>
-            Latest synthetic recordings from the demo participant.
+            Recent recordings from your own account.
           </CardDescription>
         </div>
         <Link
@@ -47,7 +47,7 @@ export function RecentSessionsTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-left text-sm">
             <caption className="sr-only">
-              Recent demonstration EEG sessions
+              Recent EEG sessions
             </caption>
             <thead>
               <tr className="border-b border-line text-xs uppercase tracking-[0.08em] text-ink-subtle">

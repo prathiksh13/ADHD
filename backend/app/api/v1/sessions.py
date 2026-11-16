@@ -5,6 +5,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from fastapi import APIRouter, Depends, Query
 
 from app.auth.dependencies import CurrentUser
+from app.attention_schemas import ActivityCompletion
 from app.core.errors import ApiError
 from app.repositories.dependencies import get_repository
 from app.repositories.firestore import Repository, path
@@ -220,9 +221,11 @@ def complete_activity_route(
     session_id: UUID,
     assignment_id: UUID,
     current_user: CurrentUser,
+    payload: ActivityCompletion | None = None,
     repo: Repository = Depends(get_repository),
 ):
-    return complete_activity(repo, current_user, session_id, assignment_id)
+    telemetry = payload.attentionTelemetry.model_dump(exclude_none=True) if payload and payload.attentionTelemetry else None
+    return complete_activity(repo, current_user, session_id, assignment_id, telemetry)
 
 
 @router.post("/{session_id}/activities/{assignment_id}/skip", response_model=SessionRead)

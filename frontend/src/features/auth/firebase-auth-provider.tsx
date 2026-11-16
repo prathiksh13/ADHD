@@ -88,12 +88,8 @@ function getSelectedProviderMode(): ProviderMode {
   return config.valid ? config.provider : "invalid";
 }
 
-function readClaimRole(claims: Record<string, unknown>): PortalRole {
-  return claims.role === "caregiver" ||
-    claims.role === "clinician" ||
-    claims.role === "researcher"
-    ? claims.role
-    : "participant";
+function readClaimRole(claims: Record<string, unknown>): PortalRole | null {
+  return claims.role === undefined || claims.role === "participant" || claims.role === "child" ? "participant" : null;
 }
 
 export function FirebaseAuthProvider({
@@ -146,14 +142,14 @@ export function FirebaseAuthProvider({
       setUser(currentUser);
       setClaimsStatus("loading");
 
-      let role: PortalRole = "participant";
+      let role: PortalRole | null = null;
 
       try {
         const tokenResult = await currentUser.getIdTokenResult();
         role = readClaimRole(tokenResult.claims);
       } catch {
         // Fail closed: a claim that cannot be verified never grants staff access.
-        role = "participant";
+        role = null;
       }
 
       if (

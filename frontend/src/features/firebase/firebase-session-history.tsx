@@ -47,7 +47,7 @@ export function FirebaseSessionHistory() {
       {backendSync ? <ServerSessionsCard /> : null}
 
       <Alert tone="info" title="Application metadata only">
-        These records describe completed CPT demo-task workflows. They do not
+        These records describe completed CPT activity workflows. They do not
         represent EEG recordings, clinical sessions, or server-side analysis.
       </Alert>
 
@@ -68,7 +68,7 @@ export function FirebaseSessionHistory() {
             <EmptyState
               icon={History}
               title="No saved application sessions"
-              description="Enable account data synchronization, then complete a scored CPT demo run. Existing in-memory demonstration sessions are not migrated."
+              description="Enable account data synchronization, then complete a scored scored CPT run. "
               action={
                 <ButtonLink href="/participant/digital-twin" variant="outline">
                   Account data settings
@@ -132,7 +132,7 @@ export function FirebaseSessionHistory() {
                         Provenance
                       </dt>
                       <dd className="mt-1 text-xs text-ink-muted">
-                        Frontend CPT demo
+                        CPT activity
                       </dd>
                     </div>
                   </dl>

@@ -98,7 +98,7 @@ export function CptProgressCharts({ data }: { data: CptProgressPoint[] }) {
             </div>
             <figcaption className="mt-2 text-xs leading-5 text-ink-subtle">
               Accuracy counts correct detections and correct rejections divided
-              by scored trials. It is a descriptive demo metric.
+              by scored trials. It is a descriptive activity metric.
             </figcaption>
           </figure>
         </CardContent>

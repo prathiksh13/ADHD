@@ -100,7 +100,7 @@ export interface ActivityRunSubmissionRequest {
   events: CptTrialEvent[];
 }
 
-export type CptRunResponse = Omit<CptRunSummary, "isDemo">;
+export type CptRunResponse = CptRunSummary;
 
 export interface ActivityHistoryResponse {
   runs: CptRunResponse[];

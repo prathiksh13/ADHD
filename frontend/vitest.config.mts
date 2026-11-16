@@ -13,7 +13,7 @@ export default defineConfig({
         "src/features/activities/cpt/**/*.ts",
         "src/features/auth/validation.ts",
         "src/features/upload/validation.ts",
-        "src/features/clinician/clinician-comparison-data.ts",
+        "src/features/activities/cpt/run-comparison.ts",
         "src/lib/api-client.ts",
         "src/lib/backend/**/*.ts",
         "src/lib/config/frontend-config.ts",

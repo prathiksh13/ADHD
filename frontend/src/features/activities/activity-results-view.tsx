@@ -1,7 +1,9 @@
 "use client";
 
 import { ArrowLeft, ListChecks } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { useActivityRecords } from "@/features/activities/use-activity-records";
+import { useFirebaseActivityRecords } from "@/features/firebase/firebase-activity-records";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +11,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ACTIVITY_RESULTS, type ResultRow } from "@/features/activities/activity-results";
-import { useActivitySessions } from "@/features/activities/activity-session-store";
-import { useRunLog } from "@/features/activities/run-log";
+
+
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import { formatDateTime } from "@/lib/utils";
 
@@ -78,28 +80,13 @@ function ResultsTable({ tab, rows }: { tab: Tab; rows: Row[] }) {
 
 export function ActivityResultsView() {
   const sync = useOptionalBackendSync();
-  const { cptRuns } = useActivitySessions();
-  const [selectedId, setSelectedId] = useState("cpt");
+  const firebase = useFirebaseActivityRecords();
+  const allRecords = useActivityRecords();
+  const search = useSyncExternalStore(() => () => {}, () => window.location.search, () => "");
+  const [chosen, setSelectedId] = useState("");
+  const selectedId = chosen || new URLSearchParams(search).get("activity") || "cpt";
   const selected = TABS.find((tab) => tab.id === selectedId) ?? TABS[0];
-  const definition = ACTIVITY_RESULTS.find((item) => item.id === selected.id);
-  const visitRows = useRunLog(definition?.id ?? "go-no-go");
-
-  const rows: Row[] = definition
-    ? sync
-      ? definition.fromServer(sync)
-      : visitRows
-    : cptRuns.map((run) => ({
-        id: run.id,
-        at: run.completedAt,
-        cells: [
-          run.accuracyPercent === null ? "—" : `${run.accuracyPercent}%`,
-          `${run.hitCount}/${run.targetCount}`,
-          String(run.falseAlarmCount),
-          run.meanHitReactionTimeMs === null ? "—" : `${run.meanHitReactionTimeMs} ms`,
-        ],
-        detailHref: `/participant/activities/history/${run.id}`,
-      }));
-
+  const rows: Row[] = allRecords.filter((run) => run.activityId === selected.id && run.mode === "scored");
   const fromServer = Boolean(sync);
 
   return (
@@ -110,7 +97,7 @@ export function ActivityResultsView() {
         description="Pick an activity to see the results of its previous scored sessions, newest first. Each activity is listed separately because each one measures something different."
         meta={
           <Badge tone={fromServer ? "success" : "brand"} dot>
-            {fromServer ? "Research backend" : "Stored locally"}
+            {firebase ? "Firebase account" : fromServer ? "Research backend" : "Current visit"}
           </Badge>
         }
         actions={
@@ -122,9 +109,9 @@ export function ActivityResultsView() {
       />
 
       <Alert tone="info" title={fromServer ? "Saved runs" : "Stored activity records"}>
-        {fromServer
-          ? "These are scored runs saved to the research backend with your consent. The server validated the trials and calculated every value shown. Runs that were not saved (for example without consent) do not appear."
-          : "Results are stored on this device, preserving previous scored sessions and recording new runs automatically. Practice runs are never recorded."}
+        {firebase ? "Scored results saved directly to Firebase and results from this visit. Enable Firebase saving to keep results after reloading. Trial results are listed in activity history." : fromServer
+          ? "These results combine account-saved scored runs and scored runs from this visit. Trial activities are excluded. Cloud saving requires research consent."
+          : "Results from this visit are available while you navigate. Trial results appear in activity history."}
       </Alert>
 
       <div role="group" aria-label="Choose an activity" className="flex flex-wrap gap-2">

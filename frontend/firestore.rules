@@ -235,6 +235,52 @@ service cloud.firestore {
 
       allow delete: if false;
 
+      // Browser-calculated summaries only; never accepted as server-validated research data.
+      match /activityResults/{runId} {
+        function validTelemetry(t) {
+          return t is map
+            && t.keys().hasAll(['schemaVersion', 'provenance', 'calibrationComplete', 'eventsTruncated', 'observedDurationMs', 'focusPercentage', 'totalBlinks', 'meanBlinkRatePerMin', 'distractionCount', 'avgRecoveryLatencyMs', 'emotionTimeline', 'telemetryEvents', 'sessionDurationMs', 'faceVisiblePercentage', 'totalDistractionDurationMs', 'longestDistractionMs'])
+            && t.keys().hasOnly(['schemaVersion', 'provenance', 'calibrationComplete', 'eventsTruncated', 'observedDurationMs', 'focusPercentage', 'totalBlinks', 'meanBlinkRatePerMin', 'distractionCount', 'avgRecoveryLatencyMs', 'emotionTimeline', 'telemetryEvents', 'sessionDurationMs', 'faceVisiblePercentage', 'totalDistractionDurationMs', 'longestDistractionMs'])
+            && t.schemaVersion == 1 && t.provenance == 'on-device-heuristic-v1'
+            && t.calibrationComplete is bool && t.eventsTruncated is bool
+            && t.focusPercentage is number && t.focusPercentage >= 0 && t.focusPercentage <= 100
+            && t.faceVisiblePercentage is number && t.faceVisiblePercentage >= 0 && t.faceVisiblePercentage <= 100
+            && t.totalBlinks is int && t.totalBlinks >= 0
+            && t.distractionCount is int && t.distractionCount >= 0
+            && t.meanBlinkRatePerMin is number && t.meanBlinkRatePerMin >= 0
+            && t.avgRecoveryLatencyMs is number && t.avgRecoveryLatencyMs >= 0
+            && t.observedDurationMs is number && t.observedDurationMs >= 0
+            && t.sessionDurationMs is number && t.sessionDurationMs >= 0
+            && t.totalDistractionDurationMs is number && t.totalDistractionDurationMs >= 0
+            && t.longestDistractionMs is number && t.longestDistractionMs >= 0
+            && t.telemetryEvents is list && t.telemetryEvents.size() <= 1000
+            && t.emotionTimeline is list && t.emotionTimeline.size() <= 200;
+        }
+        function cell(i) {
+          return request.resource.data.cells[i] is string && request.resource.data.cells[i].size() <= 100;
+        }
+        function validSummary() {
+          let d = request.resource.data;
+          let count = d.activityId in ['cpt', 'planning-puzzle', 'time-perception'] ? 4
+            : d.activityId in ['visual-sequence', 'multiple-object-tracking'] ? 3
+            : d.activityId in ['stop-signal', 'visual-search'] ? 5 : 6;
+          return d.keys().hasAll(['activityId', 'mode', 'completedAt', 'cells', 'schemaVersion', 'provenance'])
+            && d.keys().hasOnly(['activityId', 'mode', 'completedAt', 'cells', 'schemaVersion', 'provenance', 'attentionTelemetry'])
+            && (!('attentionTelemetry' in d) || validTelemetry(d.attentionTelemetry))
+            && d.activityId in ['cpt', 'go-no-go', 'n-back', 'stop-signal', 'stroop', 'task-switching', 'visual-search', 'planning-puzzle', 'visual-sequence', 'time-perception', 'multiple-object-tracking']
+            && d.mode in ['practice', 'scored']
+            // Allow a small client-clock skew so valid summaries are not denied.
+            && d.completedAt is timestamp && d.completedAt <= request.time + duration.value(120, 's')
+            && d.schemaVersion == 1 && d.provenance == 'participant-browser-summary-v1'
+            && d.cells is list && d.cells.size() == count
+            && cell(0) && cell(1) && cell(2)
+            && (count < 4 || cell(3)) && (count < 5 || cell(4)) && (count < 6 || cell(5));
+        }
+        allow get, list: if signedInAs(uid);
+        allow create: if syncEnabled(uid) && validSummary();
+        allow update, delete: if false;
+      }
+
       match /appSessions/{sessionId} {
         allow get, list: if signedInAs(uid);
         allow create: if syncEnabled(uid)

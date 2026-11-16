@@ -11,6 +11,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import numpy as np
+from scipy.signal import resample_poly
+
 from app.core.config import Settings
 from app.eeg.artifacts import EegModel
 from app.eeg.features import RecordingFeatures, extract_recording_features
@@ -20,7 +23,7 @@ from app.eeg.ingestion import (
     load_any_eeg_bytes,
 )
 from app.eeg.preprocessing import EegValidationError, PreprocessedRecording, preprocess_raw
-from app.eeg.schema import FEATURE_NAMES
+from app.eeg.schema import EXPECTED_CHANNELS, FEATURE_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +143,11 @@ def analyze_recording(
     if eo_preprocessed is not None:
         total_windows += eo_preprocessed.windows_analyzed
 
+    segment = ec_preprocessed.windows[0]
+    preview_channels = ["Fp1", "Fp2", "F3", "F4", "C3", "C4", "P3", "P4"]
+    indices = [list(EXPECTED_CHANNELS).index(name) for name in preview_channels]
+    preview = resample_poly(segment[indices], up=1, down=2, axis=1) * 1e6
+    model_status = model.status()
     return {
         "prediction": prediction,
         "probability": round(adhd_probability, 6),
@@ -155,4 +163,24 @@ def analyze_recording(
             ),
         },
         "biomarker_breakdown": {name: round(features.named[name], 6) for name in FEATURE_NAMES},
+        "signal_preview": {
+            "channels": preview_channels,
+            "sample_rate_hz": ec_preprocessed.sfreq / 2,
+            "units": "microvolts",
+            "samples": np.round(preview, 3).tolist(),
+            "duration_seconds": segment.shape[1] / ec_preprocessed.sfreq,
+            "description": "First selected Eyes Closed window after common average reference, 1-45 Hz filtering, 50 Hz notch and resampling. Harmonized channels may include interpolation. This is a selected segment, not the complete recording.",
+        },
+        "analysis": {
+            "eyes_closed_windows_used": ec_preprocessed.windows_analyzed,
+            "eyes_closed_windows_not_used": ec_preprocessed.windows_rejected,
+            "amplitude_fallback_used": ec_preprocessed.amplitude_fallback_used,
+            "scaler_loaded": model_status.get("scaler_loaded", False),
+            "threshold_source": model_status.get("threshold_source"),
+            "artifact_version": model_status.get("artifact_version"),
+            "limitations": [
+                "Model output is research information and is not an ADHD diagnosis.",
+                "The graph encoder is not loaded; training-to-serving feature compatibility is unverified.",
+            ],
+        },
     }

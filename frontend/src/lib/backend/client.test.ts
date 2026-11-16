@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiClientError, ApiError } from "@/lib/api-client";
 import { AuthTokenUnavailableError, createBackendClient } from "@/lib/backend/client";
+import { MonitorEngine } from "@/features/attention/monitor-engine";
 
 const BASE = "https://api.example.test";
 
@@ -25,6 +26,27 @@ function lastRequest(fetcher: ReturnType<typeof vi.fn>, call = 0) {
 }
 
 describe("createBackendClient", () => {
+  it("includes derived telemetry in the authorized activity completion request", async () => {
+    const fetcher = vi.fn(async () => json({ id: "session" }));
+    const { client } = setup(fetcher as unknown as typeof fetch);
+    const telemetry = new MonitorEngine(0, "2026-01-01T00:00:00.000Z", 0).finish(1000, "2026-01-01T00:00:01.000Z");
+    await client.completeActivity("session", "activity", telemetry);
+    const request = lastRequest(fetcher);
+    expect(request.headers.get("Authorization")).toBe("Bearer token-1");
+    expect(JSON.parse(String(request.init.body))).toEqual({ attentionTelemetry: telemetry });
+  });
+  it("authorizes optional journal writes and accepts deletion with no response body", async () => {
+    const fetcher = vi.fn(async (_input: unknown, init?: RequestInit) =>
+      init?.method === "DELETE" ? new Response(null, { status: 204 })
+        : json({ goal: "Example", entries: [], updatedAt: null }));
+    const { client } = setup(fetcher as unknown as typeof fetch);
+    await client.updateTwinJournal("subject", { goal: "Example" });
+    const request = lastRequest(fetcher);
+    expect(request.url).toBe(`${BASE}/api/v1/subjects/subject/twin-journal`);
+    expect(request.headers.get("Authorization")).toBe("Bearer token-1");
+    expect(request.init.method).toBe("PATCH");
+    await expect(client.deleteTwinJournal("subject")).resolves.toBeUndefined();
+  });
   it("sends the Firebase ID token as a bearer token and targets /api/v1", async () => {
     const fetcher = vi.fn(async () => json({ items: [] }));
     const getIdToken = vi.fn<(forceRefresh: boolean) => Promise<string>>(async () => "token-1");

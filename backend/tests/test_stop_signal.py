@@ -132,7 +132,8 @@ def test_end_to_end_session_is_scored_and_kept_out_of_the_cpt_twin(test_app, par
 
     sid = subject["id"]
     twin = client.get(f"/api/v1/subjects/{sid}/digital-twin", headers=participant_headers).json()
-    assert twin["version"] == 0 and twin["status"] == "insufficient_data"
+    assert twin["version"] == 1 and twin["status"] == "insufficient_data"
+    assert twin["profile"]["activity_profiles"][0]["run_count"] == 1
     listed = client.get(f"/api/v1/subjects/{sid}/activity-summaries", headers=participant_headers)
     assert listed.status_code == 200 and listed.json()["items"][0]["activityCode"] == CODE
 

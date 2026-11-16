@@ -15,7 +15,7 @@ const apiErrorPresentation: Record<
   },
   "not-configured": {
     title: "Remote service is not configured",
-    message: "No backend request was sent. Use demo mode or configure a confirmed backend base URL.",
+    message: "Configure the account connection and backend origin, then try again.",
     tone: "warning",
   },
   "contract-unconfirmed": {

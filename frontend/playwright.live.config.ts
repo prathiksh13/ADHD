@@ -51,6 +51,7 @@ export default defineConfig({
       timeout: 300_000,
       env: {
         NEXT_PUBLIC_DATA_PROVIDER: "firebase",
+        NEXT_PUBLIC_ACTIVITY_PERSISTENCE: "backend",
         NEXT_PUBLIC_API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
         NEXT_PUBLIC_FIREBASE_API_KEY: "fake-api-key",
         NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: `${PROJECT_ID}.firebaseapp.com`,

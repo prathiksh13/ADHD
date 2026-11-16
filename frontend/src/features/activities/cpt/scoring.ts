@@ -160,7 +160,6 @@ export function buildCptRunSummary(input: {
     mode: input.mode,
     completedAt: input.completedAt,
     events: input.events,
-    isDemo: true,
     ...calculateCptMetrics(input.events),
   };
 }

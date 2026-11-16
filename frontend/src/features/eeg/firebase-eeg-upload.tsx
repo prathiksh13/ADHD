@@ -13,10 +13,15 @@ import {
 import {
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type FormEvent,
   type RefObject,
 } from "react";
+import { EegSignalPlot, readSignalPreview, type SignalPreview } from "@/features/eeg/eeg-signal-plot";
+import { recordEegRun, useEegRuns } from "@/features/activities/run-log";
+import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
+import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +160,9 @@ const BIOMARKER_GROUPS: BiomarkerGroup[] = [
 const BIOMARKER_DEFINITIONS = BIOMARKER_GROUPS.flatMap((group) => group.features);
 
 interface ScoredPrediction {
+  signalPreview: SignalPreview | null;
+  analysisId: string | null;
+  analysis: Record<string, unknown> | null;
   prediction: "ADHD" | "Control";
   probability: number;
   threshold: number;
@@ -169,7 +177,7 @@ interface ScoredPrediction {
 
 type AnalysisResult =
   | { status: "scored"; prediction: ScoredPrediction }
-  | { status: "unscored"; reason: string };
+  | { status: "unscored"; reason: string; analysisId?: string };
 
 class EegRequestError extends Error {
   readonly requestId?: string;
@@ -219,7 +227,7 @@ function errorMessage(status: number, code?: string): string {
   }
 }
 
-function readPrediction(payload: unknown): AnalysisResult | null {
+export function readPrediction(payload: unknown): AnalysisResult | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
   }
@@ -229,6 +237,7 @@ function readPrediction(payload: unknown): AnalysisResult | null {
   if (data.status === "Unscored" || data.prediction === "Unscored") {
     return {
       status: "unscored",
+      analysisId: typeof data.analysis_id === "string" ? data.analysis_id : undefined,
       reason:
         typeof data.reason === "string" && data.reason.trim()
           ? data.reason
@@ -275,6 +284,9 @@ function readPrediction(payload: unknown): AnalysisResult | null {
   return {
     status: "scored",
     prediction: {
+      signalPreview: readSignalPreview(data.signal_preview),
+      analysisId: typeof data.analysis_id === "string" ? data.analysis_id : null,
+      analysis: data.analysis && typeof data.analysis === "object" ? data.analysis as Record<string, unknown> : null,
       prediction: data.prediction,
       probability: data.probability,
       threshold: data.threshold,
@@ -298,6 +310,7 @@ async function requestPrediction(
   baseUrl: string,
   ecFile: File,
   eoFile: File | null,
+  saved?: { subjectId: string; token: string },
 ): Promise<AnalysisResult> {
   const form = new FormData();
   form.append("restEC_file", ecFile, ecFile.name);
@@ -307,7 +320,8 @@ async function requestPrediction(
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl.replace(/\/$/, "")}/predict`, {
+    response = await fetch(`${baseUrl.replace(/\/$/, "")}${saved ? `/api/v1/subjects/${saved.subjectId}/eeg-analyses` : "/predict"}`, {
+      headers: saved ? { Authorization: `Bearer ${saved.token}` } : undefined,
       method: "POST",
       body: form,
       cache: "no-store",
@@ -661,6 +675,13 @@ function RecordingPicker({
 }
 
 export function FirebaseEegUpload() {
+  const { user } = useFirebaseAuth();
+  const sync = useOptionalBackendSync();
+  const previousAnalyses = useEegRuns();
+  const search = useSyncExternalStore(() => () => {}, () => window.location.search, () => "");
+  const restored = previousAnalyses.find((r) => r.id === new URLSearchParams(search).get("analysis"));
+  const [hideRestored, setHideRestored] = useState(false);
+  const [saveAnalysis, setSaveAnalysis] = useState(false);
   const config = getFrontendConfig();
   const apiBaseUrl = config.valid ? config.apiBaseUrl : null;
   const ecInputRef = useRef<HTMLInputElement>(null);
@@ -675,9 +696,11 @@ export function FirebaseEegUpload() {
   const [formError, setFormError] = useState<string>();
   const [requestId, setRequestId] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [newResult, setResult] = useState<AnalysisResult | null>(null);
+  const result = newResult ?? (!hideRestored ? restored?.result as AnalysisResult | null : null);
 
   function resetResult() {
+    setHideRestored(true);
     setResult(null);
     setFormError(undefined);
     setRequestId(undefined);
@@ -756,7 +779,12 @@ export function FirebaseEegUpload() {
     setResult(null);
 
     try {
-      setResult(await requestPrediction(apiBaseUrl, ecFile, eoFile));
+      const saved = saveAnalysis && user && sync?.subjectId && sync.consent.status === "granted"
+        ? { subjectId: sync.subjectId, token: await user.getIdToken() } : undefined;
+      const analyzed = await requestPrediction(apiBaseUrl, ecFile, eoFile, saved);
+      setResult(analyzed);
+      recordEegRun({ id: (analyzed.status === "scored" ? analyzed.prediction.analysisId : analyzed.analysisId) || crypto.randomUUID(),
+        at: new Date().toISOString(), label: "EEG analysis", result: analyzed, saved: Boolean(saved) }, user?.uid);
     } catch (error) {
       if (error instanceof EegRequestError) {
         setFormError(error.message);
@@ -875,6 +903,11 @@ export function FirebaseEegUpload() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5 border-t border-line pt-5">
+                {sync ? <label className="flex w-full items-start gap-2 text-sm text-ink-muted">
+                  <input type="checkbox" checked={saveAnalysis} onChange={(e) => setSaveAnalysis(e.target.checked)} disabled={submitting || sync.consent.status !== "granted"} />
+                  Save the analysis summary to my session history. No recording or signal samples are stored.
+                  {sync.consent.status !== "granted" ? " Grant research consent in Digital Twin to enable saving." : ""}
+                </label> : null}
                 <Button type="submit" disabled={submitting || !apiBaseUrl}>
                   {submitting ? (
                     <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
@@ -899,7 +932,16 @@ export function FirebaseEegUpload() {
             result.status === "unscored" ? (
               <UnscoredResult reason={result.reason} />
             ) : (
-              <PredictionResult result={result.prediction} />
+              <div className="space-y-4"><PredictionResult result={result.prediction} />
+                {result.prediction.analysis ? <Card className="p-4"><h3 className="font-semibold text-ink">Analysis and quality</h3>
+                  <p className="mt-2 text-sm leading-6 text-ink-muted">{String(result.prediction.analysis.eyes_closed_windows_used ?? result.prediction.windowsAnalyzed)} Eyes Closed windows used.
+                    {result.prediction.analysis.amplitude_fallback_used ? " Amplitude-screen fallback was used: interpret this recording cautiously." : " Amplitude-screen fallback was not used."}
+                    {!result.prediction.analysis.scaler_loaded ? " Training scaler statistics are missing; the model currently uses identity scaling." : ""}
+                    {" "}The training-to-serving feature contract remains unverified; this is not a clinical diagnosis.</p>
+                </Card> : null}
+                {result.prediction.signalPreview ? <EegSignalPlot preview={result.prediction.signalPreview} />
+                  : <p className="text-sm text-ink-muted">Signal samples are not stored with saved summaries. Analyze the recording again to generate a waveform preview.</p>}
+              </div>
             )
           ) : (
             <Card>

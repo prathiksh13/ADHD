@@ -18,16 +18,16 @@ export const RESEARCH_CONSENT_IS_DRAFT = true;
 export const RESEARCH_CONSENT_DRAFT = {
   title: "Research data collection (draft wording)",
   summary:
-    "Allow this account to save the results of scored CPT activities to the research backend, where they are validated and summarized.",
+    "Allow this account to save scored cognitive activity results to the research backend. Optional private goals and daily check-ins are saved only when submitted; EEG summaries require a separate save choice.",
   points: [
-    "What is saved: the trial-by-trial responses of scored CPT runs (which stimulus, whether you responded, and the response time) and the summary values calculated from them.",
+    "What is saved: scored cognitive task responses and calculated summaries. Submitted private goals and daily check-ins are owner-only. EEG result summaries require a separate save checkbox.",
     "What is not saved: practice runs, EEG files, webcam video, or any message content.",
     "Results are descriptive research measurements. They are not a diagnosis or a clinical assessment.",
     "You can withdraw consent at any time. Withdrawing stops future saving; it does not by itself delete data that was already saved.",
     "This activity is for research and learning. If the participant is a child, a parent or guardian should review this step with them.",
   ],
   agreementLabel:
-    "I have read this draft and agree to save scored CPT results for research (draft; not approved wording).",
+    "I have read this draft and agree to save scored CPT results and other cognitive activity results for research, with optional private journal and EEG-summary choices (draft; not approved wording).",
 } as const;
 
 /**

@@ -13,19 +13,19 @@ const CONFIDENCE: Record<TwinConfidence, { label: string; tone: BadgeTone; detai
     detail: "Trends and comparisons need at least 2 saved runs.",
   },
   low: {
-    label: "Low confidence",
+    label: "2–4 recorded runs",
     tone: "warning",
     detail: "2–4 runs. Differences between runs can easily be chance.",
   },
   moderate: {
-    label: "Moderate confidence",
+    label: "5–9 recorded runs",
     tone: "brand",
-    detail: "5–9 runs. Patterns are starting to be stable, but remain descriptive.",
+    detail: "More observations are available. This is not a statistical confidence estimate.",
   },
   higher: {
-    label: "Higher confidence",
+    label: "10+ recorded runs",
     tone: "success",
-    detail: "10 or more runs. Still descriptive only; this is not a diagnosis.",
+    detail: "Run count alone does not establish reliability or clinical validity.",
   },
 };
 

@@ -18,6 +18,42 @@ const twin = (profile: Record<string, unknown>, overrides: Partial<BackendDigita
 });
 
 describe("parseServerTwin", () => {
+  it("parses robust baseline windows and ignores invalid trend numbers", () => {
+    const view = parseServerTwin(twin({ activity_profiles: [{ activity_code: "stroop",
+      personal_baseline: {
+        status: "comparison_ready", comparable_run_count: 6, observation_days: 3, runs_needed: 0,
+        measurements: [{ key: "accuracy_percent", baseline_median: 60, recent_median: 80, change: 20 }],
+        trend: [{ source_id: "s", completed_at: "2026-01-01", metrics: { accuracy_percent: 80, flag: true, bad: Infinity } }],
+      },
+    }] }));
+    expect(view.activityProfiles[0].personalBaseline).toMatchObject({
+      status: "comparison_ready", comparableRunCount: 6, observationDays: 3,
+      measurements: [{ key: "accuracy_percent", baseline: 60, recent: 80, change: 20 }],
+    });
+    expect(view.activityProfiles[0].personalBaseline?.trend[0].metrics).toEqual({ accuracy_percent: 80 });
+  });
+  it("reads non-CPT profiles and rejects invalid measurement values", () => {
+    const view = parseServerTwin(twin({
+      summary_count: 0,
+      total_summary_count: 2,
+      activity_profiles: [{
+        activity_code: "stroop", title: "Stroop", run_count: 2,
+        latest_at: "2026-01-02T00:00:00Z", quality_flags: [],
+        measurements: [
+          { key: "accuracy_percent", latest: 90, baseline: 70, change: 20 },
+          { key: "invalid", latest: Number.NaN },
+          { key: "flag", latest: true },
+        ],
+      }],
+    }));
+    expect(view.summaryCount).toBe(0);
+    expect(view.totalSummaryCount).toBe(2);
+    expect(view.activityProfiles[0].measurements).toEqual([
+      { key: "accuracy_percent", latest: 90, baseline: 70, change: 20 },
+    ]);
+    expect(parseServerTwin(twin({ summary_count: 3 })).totalSummaryCount).toBe(3);
+    expect(parseServerTwin(twin({})).activityProfiles).toEqual([]);
+  });
   it("reads the snake_case profile into a typed view", () => {
     const view = parseServerTwin(
       twin({

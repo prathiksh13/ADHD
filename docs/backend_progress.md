@@ -1,5 +1,91 @@
 # Backend Progress
 
+## Cross-modal session analysis endpoint
+
+`POST /api/sessions/analyze` now provides authenticated, stateless cross-modal
+analysis. It accepts the original derived field contract: EEG probability,
+predicted class, frontal/central theta-beta ratios, frontal alpha asymmetry,
+spectral entropy and SHAP values; task type, accuracy, mean reaction time,
+reaction-time SD, error counts and block progression; and webcam focus, off-screen
+episodes with root cause/recovery latency, blink rate/timestamps, alert
+timestamps and emotion timeline. EEG epoch timestamps may be top-level or nested
+under `eeg`; session metadata is optional. It never accepts raw video or audio
+and writes nothing to Firestore. The response contains an executive summary, EEG
+artifact/cleanliness analysis, descriptive phenotype and concordance profile,
+minute-level overlay, distraction breakdown by root cause/recovery speed and
+non-diagnostic recommendations. The route has a 2 MiB body cap while other
+`/api` routes retain the generic limit.
+
+Validation: backend **199 passed / 94 skipped** (Firestore emulator not
+configured); `ruff check`, `ruff format --check` and `compileall` passed. Tests
+use synthetic payloads and cover authentication, exact snake_case contract
+ingestion, missing optional metadata, validation, artifact windows,
+time-series/affect math, all four phenotypes, poor EEG quality and the larger
+route body cap. No live Firebase, browser, real-camera or clinical validation is
+claimed.
+
+## Unified participant results and EEG waveform update
+
+Activity history, progress, Digital Twin and session history now use the same
+participant activity-record model, including all eleven activities, current-visit
+results and reloaded saved summaries. All activity entry screens expose trial
+and scored options. Practice appears in visit history and stays out of scored
+progress. Account changes clear visit data, and saved assignment IDs suppress
+duplicate browser/server copies. The primary participant Twin is now a concise
+results view rather than the previous CPT-only information page.
+
+EEG responses now contain a selected, preprocessed eight-channel signal preview
+and quality metadata. The browser plots the samples and downloads an SVG image.
+Optional authenticated EEG summary saving/listing uses owner-scoped Firestore
+documents and transactional consent checks. Raw files and signal samples are
+never stored in those documents. Export, erasure and session history include the
+summary records. See [results flow](activity-results-flow.md).
+
+Validation: 191 backend tests and 233 frontend unit tests passed; TypeScript,
+ESLint and production builds passed. Focused browser tests passed against local
+Auth/Firestore emulators, checking all eleven activity entry options, completion
+and reload across the four views, EEG upload, waveform download and saved-result
+review. EEG input and accounts were synthetic. No clinical or live-cloud
+verification is claimed.
+
+## Personal baseline and private journal update (v4)
+
+The participant Twin now leads with one selectable activity and a few readable
+measurements. It compares the median of the first three compatible scored runs
+with the median of a separate latest-three group. Six runs are an engineering
+reference-window requirement, not a validated clinical threshold. Task/scoring
+changes restart the sequence; single-day data is flagged; missing values are
+not filled in. Run-count badges no longer imply statistical confidence.
+
+An optional owner-only journal records an everyday goal and up to thirty dated
+sleep/stress/distraction/goal-progress check-ins. Saving is transactionally
+consent-gated; reading and deletion remain available after withdrawal. Export
+and erasure include the journal. It is never included in caregiver-shared Twin
+snapshots. Browser CPT history no longer loads or saves through the unscoped
+local-storage key. See [Digital Twin](digital_twin.md) for the full contract.
+
+Validation: backend **190 passed / 87 skipped** (emulators unavailable), frontend
+unit tests **228 passed**, TypeScript, ESLint and production build passed. The new
+TypeScript journal contract test also passed against the actual FastAPI app
+using synthetic token claims and an in-memory repository. This does not verify
+live Firebase, browser interactions, clinical reliability or clinical benefit.
+
+## Activity Digital Twin v3
+
+The API-backed Twin now includes separate profiles for all eleven activities,
+with first/latest numeric measurements, within-task changes, source summary
+IDs, provenance and scoring-version quality flags. Every scored activity
+completion rebuilds it, including within a session that is still active.
+Unchanged rebuilds do not add duplicate history versions. CPT aggregate fields,
+reports and trends retain their existing meaning. See [Digital Twin](digital_twin.md)
+for the storage contract, compatibility and modality limitations.
+
+Validation for this change: backend 185 passed / 84 skipped (emulators not
+configured); frontend 226 passed / 27 skipped; TypeScript and production build
+passed. Frontend lint remains blocked by the pre-existing synchronous
+`setBrowserRuns` call in the activity-history hydration effect. No live cloud
+verification or EEG-to-subject persistence is claimed.
+
 ## Architecture correction and implementation
 
 Firebase Authentication plus Cloud Firestore supersede the original PostgreSQL

@@ -27,6 +27,7 @@ from app.services.consent import withdraw_consent_record
 ERASED_SUBJECT_COLLECTIONS = (
     "sessions",  # includes nested activities, trial events and feeling check-ins
     "activitySummaries",
+    "eegAnalyses",
     "digitalTwin",
     "digitalTwinHistory",
     "reports",
@@ -125,6 +126,9 @@ def export_subject_data(repository: Repository, subject: Document, user) -> dict
         ],
         "digitalTwin": {
             "current": _record(twin_current) if twin_current else None,
+            "journal": _record(journal)
+            if (journal := repository.get(path("subjects", sid, "digitalTwin", "journal")))
+            else None,
             "history": [
                 _record(item)
                 for item in repository.list(
@@ -132,6 +136,7 @@ def export_subject_data(repository: Repository, subject: Document, user) -> dict
                 )
             ],
         },
+        "eegAnalyses": [_record(item) for item in repository.list(path("subjects", sid, "eegAnalyses"))],
         "reports": [
             _record(item)
             for item in repository.list(path("subjects", sid, "reports"), order_by=("created_at", "asc"))

@@ -5,14 +5,16 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { buildCptRunSummary } from "@/features/activities/cpt/scoring";
-import { DEMO_PARTICIPANT_ID } from "@/data/demo/participant";
 import type { CptRunSummary, CptTrialEvent } from "@/types";
+import { setRunLogScope } from "@/features/activities/run-log";
+import { captureActivityTelemetry } from "@/features/attention/telemetry-registry";
 
 export interface NewCptRun {
   participantId: string;
@@ -92,42 +94,14 @@ export function mergeActivityRuns(
       (left, right) =>
         new Date(right.completedAt).getTime() -
         new Date(left.completedAt).getTime(),
-    )
-    .slice(0, 12);
+    );
 }
 
 const CPT_STORAGE_KEY = "attune:cpt-runs";
 
-function loadStoredCptRuns(): CptRunSummary[] {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      const raw = window.localStorage.getItem(CPT_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-    }
-  } catch {
-    // Ignore storage errors in non-browser environments
-  }
-  return [];
-}
-
-function persistCptRuns(runs: CptRunSummary[]): void {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(CPT_STORAGE_KEY, JSON.stringify(runs));
-    }
-  } catch {
-    // Ignore storage errors
-  }
-}
-
 export function ActivitySessionProvider({
   children,
-  participantId = DEMO_PARTICIPANT_ID,
+  participantId,
   storageMode = "memory",
   persistenceTarget = "firebase",
   cloudSyncEnabled = false,
@@ -135,27 +109,25 @@ export function ActivitySessionProvider({
   onPersistRun,
 }: {
   children: ReactNode;
-  participantId?: string;
+  participantId: string;
   storageMode?: "memory" | "firebase";
   persistenceTarget?: PersistenceTarget;
   cloudSyncEnabled?: boolean;
   initialRuns?: CptRunSummary[];
   onPersistRun?: (run: CptRunSummary) => Promise<PersistRunOutcome | void>;
 }) {
+  useLayoutEffect(() => {
+    setRunLogScope(participantId);
+    return () => setRunLogScope("signed-out");
+  }, [participantId]);
   const effectiveInitialRuns = useMemo(() => {
     if (initialRuns && initialRuns.length > 0) return initialRuns;
-    if (storageMode === "memory") return DEMO_PAST_CPT_RUNS;
     return [];
-  }, [initialRuns, storageMode]);
+  }, [initialRuns]);
 
   const [browserRuns, setBrowserRuns] = useState<CptRunSummary[]>([]);
 
-  useEffect(() => {
-    const stored = loadStoredCptRuns();
-    if (stored.length > 0) {
-      setBrowserRuns(stored);
-    }
-  }, []);
+
   const [writeStatus, setWriteStatus] = useState<
     Exclude<ActivitySessionContextValue["persistenceStatus"], "disabled" | "not-applicable">
   >("saved");
@@ -238,7 +210,7 @@ export function ActivitySessionProvider({
     const id =
       storageMode === "firebase"
         ? globalThis.crypto.randomUUID()
-        : `DEMO-CPT-${String(sequence).padStart(4, "0")}`;
+        : `CPT-${String(sequence).padStart(4, "0")}`;
     const run = buildCptRunSummary({
       id,
       participantId,
@@ -247,10 +219,12 @@ export function ActivitySessionProvider({
       events: input.events,
     });
     completedEvents.current.set(input.events, run);
+    const attentionTelemetry = captureActivityTelemetry("cpt", id);
+    if (attentionTelemetry) run.attentionTelemetry = attentionTelemetry;
 
     setBrowserRuns((current) => {
-      const next = [run, ...current.filter((r) => r.id !== run.id)].slice(0, 12);
-      persistCptRuns(next);
+      const next = [run, ...current.filter((r) => r.id !== run.id)];
+
       return next;
     });
 

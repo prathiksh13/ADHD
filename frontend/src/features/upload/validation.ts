@@ -8,19 +8,19 @@ export function getFileExtension(fileName: string): string {
   return lastDot === -1 ? "" : fileName.slice(lastDot).toLowerCase();
 }
 
-export function validateDemoEegFile(file: File): string | undefined {
+export function validateEegFile(file: File): string | undefined {
   const extension = getFileExtension(file.name);
 
   if (!ACCEPTED_EXTENSIONS.some((accepted) => accepted === extension)) {
-    return "Choose a .csv, .edf, or .bdf demo file.";
+    return "Choose a .csv, .edf, or .bdf recording.";
   }
 
   if (file.size === 0) {
-    return "The selected file is empty. Choose a non-empty demo file.";
+    return "The selected file is empty. Choose a non-empty recording.";
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return `The selected file is larger than ${MAX_FILE_SIZE_LABEL}. Choose a smaller demo file.`;
+    return `The selected file is larger than ${MAX_FILE_SIZE_LABEL}. Choose a smaller recording.`;
   }
 
   return undefined;

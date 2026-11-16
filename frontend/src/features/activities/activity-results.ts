@@ -51,6 +51,9 @@ export interface LocalSummaries {
 }
 
 export interface ResultRow {
+  attentionTelemetry?: import("@/features/attention/attention-types").SessionTelemetrySummary;
+  mode?: "practice" | "scored";
+  serverId?: string;
   id: string;
   at: string;
   cells: string[];

@@ -10,6 +10,7 @@ import {
   ConsentRequiredError,
   createBackendSyncController,
   describeSyncError,
+  isBackendSetupError,
 } from "@/lib/backend/sync-controller";
 import { summaryToCptRun } from "@/lib/backend/summary-mapping";
 import type {
@@ -437,6 +438,16 @@ describe("describeSyncError for reports and consent", () => {
 });
 
 describe("describeSyncError", () => {
+  it("distinguishes missing server configuration from a participant or activity error", () => {
+    for (const backendCode of ["firebase_project_not_configured", "firebase_credentials_unavailable", "firestore_not_configured"]) {
+      const error = new ApiError("private server details", 503, "http-request-failed", { backendCode });
+      expect(isBackendSetupError(error)).toBe(true);
+      expect(describeSyncError(error)).toMatch(/Firebase connection is not configured/);
+      expect(describeSyncError(error)).not.toContain("private server details");
+    }
+    expect(isBackendSetupError(new ApiError("x", 500))).toBe(false);
+    expect(describeSyncError(new ApiError("x", 503, "http-request-failed", { backendCode: "firestore_unavailable" }))).toMatch(/cannot access its Firestore database/);
+  });
   it("never leaks server text and includes the reference when available", () => {
     const error = new ApiError("generic", 500, "http-request-failed", { requestId: "req-9" });
     const text = describeSyncError(error);

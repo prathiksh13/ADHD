@@ -1,20 +1,33 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from app.auth.dependencies import CurrentUser
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.eeg.artifacts import ArtifactError, EegModel
 from app.eeg.inference import analyze_recording
 from app.eeg.preprocessing import EegFileError, EegValidationError
 from app.eeg.schema import EXPECTED_CHANNELS, FEATURE_NAMES, FEATURE_SCHEMA_VERSION
+from app.repositories.dependencies import get_repository
+from app.repositories.firestore import Repository, path
+from app.services.authorization import (
+    audit_access,
+    get_subject_for_user,
+    require_active_consent,
+    require_participant_owner,
+)
+from app.services.sessions import _require_consent_tx
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["eeg"])
+saved_router = APIRouter(prefix="/subjects", tags=["eeg"])
 
 _READ_CHUNK_BYTES = 1024 * 1024
 
@@ -157,3 +170,55 @@ async def predict(
             "eeg_inference_failed",
             "The EEG recording could not be analyzed.",
         ) from exc
+
+
+@saved_router.post("/{subject_id}/eeg-analyses")
+async def save_prediction(
+    subject_id: UUID,
+    request: Request,
+    current_user: CurrentUser,
+    restEC_file: UploadFile = File(...),
+    restEO_file: UploadFile | None = File(None),
+    repository: Repository = Depends(get_repository),
+) -> dict[str, Any]:
+    subject = get_subject_for_user(repository, current_user, subject_id, write=True)
+    require_participant_owner(current_user, subject)
+    require_active_consent(repository, subject_id, "research")
+    result = await predict(request, restEC_file, restEO_file)
+    analysis_id, now = str(uuid4()), datetime.now(UTC)
+    # Keep only server-derived summary metadata. Signal samples and uploaded files stay transient.
+    summary = {key: value for key, value in result.items() if key != "signal_preview"}
+
+    def write(tx):
+        _require_consent_tx(tx, str(subject_id))
+        tx.set(
+            path("subjects", subject_id, "eegAnalyses", analysis_id),
+            {
+                "result": summary,
+                "created_at": now,
+            },
+        )
+
+    repository.run_transaction(write)
+    audit_access(
+        repository,
+        current_user,
+        "eeg_analysis_saved",
+        "eeg_analysis",
+        subject_id=subject_id,
+        resource_id=analysis_id,
+    )
+    return {**result, "analysis_id": analysis_id, "created_at": now.isoformat()}
+
+
+@saved_router.get("/{subject_id}/eeg-analyses")
+def list_predictions(
+    subject_id: UUID, current_user: CurrentUser, repository: Repository = Depends(get_repository)
+) -> dict:
+    subject = get_subject_for_user(repository, current_user, subject_id, write=True)
+    require_participant_owner(current_user, subject)
+    records = repository.list(
+        path("subjects", subject_id, "eegAnalyses"), order_by=("created_at", "desc"), limit=30
+    )
+    audit_access(repository, current_user, "eeg_analyses_read", "eeg_analysis", subject_id=subject_id)
+    return {"items": [{"id": r.id, "createdAt": r.created_at, "result": r.result} for r in records]}

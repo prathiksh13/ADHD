@@ -4,10 +4,12 @@ from app.api.v1.activities import router as activities_router
 from app.api.v1.ai_buddy import router as ai_buddy_router
 from app.api.v1.caregiver import router as caregiver_router
 from app.api.v1.data_rights import router as data_rights_router
+from app.api.v1.eeg import saved_router as eeg_saved_router
 from app.api.v1.insights import router as insights_router
 from app.api.v1.integrations import router as integrations_router
 from app.api.v1.sessions import router as sessions_router
 from app.api.v1.subjects import router as subjects_router
+from app.api.v1.twin_journal import router as twin_journal_router
 from app.api.v1.users import router as users_router
 
 api_router = APIRouter()
@@ -20,3 +22,5 @@ api_router.include_router(sessions_router)
 api_router.include_router(insights_router)
 api_router.include_router(data_rights_router)
 api_router.include_router(caregiver_router)
+api_router.include_router(twin_journal_router)
+api_router.include_router(eeg_saved_router)

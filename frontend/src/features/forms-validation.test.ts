@@ -10,7 +10,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   formatFileSize,
   getFileExtension,
-  validateDemoEegFile,
+  validateEegFile,
 } from "@/features/upload/validation";
 
 function fileOf(name: string, size: number): File {
@@ -57,15 +57,15 @@ describe("upload validation", () => {
 
   it("accepts csv, edf and bdf within the size limit", () => {
     for (const name of ["a.csv", "a.edf", "a.BDF"]) {
-      expect(validateDemoEegFile(fileOf(name, 1024))).toBeUndefined();
+      expect(validateEegFile(fileOf(name, 1024))).toBeUndefined();
     }
-    expect(validateDemoEegFile(fileOf("a.csv", MAX_FILE_SIZE_BYTES))).toBeUndefined();
+    expect(validateEegFile(fileOf("a.csv", MAX_FILE_SIZE_BYTES))).toBeUndefined();
   });
 
   it("rejects unsupported types, empty files and oversize files", () => {
-    expect(validateDemoEegFile(fileOf("a.exe", 10))).toMatch(/\.csv, \.edf, or \.bdf/);
-    expect(validateDemoEegFile(fileOf("a.csv", 0))).toMatch(/empty/);
-    expect(validateDemoEegFile(fileOf("a.csv", MAX_FILE_SIZE_BYTES + 1))).toMatch(/larger than 25 MB/);
+    expect(validateEegFile(fileOf("a.exe", 10))).toMatch(/\.csv, \.edf, or \.bdf/);
+    expect(validateEegFile(fileOf("a.csv", 0))).toMatch(/empty/);
+    expect(validateEegFile(fileOf("a.csv", MAX_FILE_SIZE_BYTES + 1))).toMatch(/larger than 25 MB/);
   });
 
   it("formats sizes", () => {

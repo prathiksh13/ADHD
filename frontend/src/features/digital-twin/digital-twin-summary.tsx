@@ -47,7 +47,7 @@ export function DigitalTwinSummary({
               {participantName}
             </p>
             <p className="truncate font-mono text-[11px] text-ink-subtle">
-              {researchCode} · demo profile
+              {researchCode} · activity profile
             </p>
           </div>
           <Fingerprint

@@ -1,4 +1,5 @@
 import { ApiClientError, createApiClient } from "@/lib/api-client";
+import type { TwinJournal, TwinJournalEntry } from "@/lib/backend/twin-journal";
 import type {
   BackendActivitySummary,
   BackendActivitySummaryPage,
@@ -129,6 +130,12 @@ export function createBackendClient({
   return {
     getCapabilities: () => request<BackendCapabilities>("capabilities"),
     getMe: () => request<BackendUser>("users/me"),
+    listEegAnalyses: (subjectId: string) => request<{ items: { id: string; createdAt: string; result: Record<string, unknown> }[] }>(`subjects/${subjectId}/eeg-analyses`),
+    getTwinJournal: (subjectId: string) => request<TwinJournal>(`subjects/${subjectId}/twin-journal`),
+    updateTwinJournal: (subjectId: string, body: { goal?: string | null; entry?: Omit<TwinJournalEntry, "goal"> }) =>
+      request<TwinJournal>(`subjects/${subjectId}/twin-journal`, { method: "PATCH", body }),
+    deleteTwinJournal: (subjectId: string) =>
+      request<void>(`subjects/${subjectId}/twin-journal`, { method: "DELETE" }),
 
     listSubjects: () => request<{ items: BackendSubject[] }>("subjects"),
     createSubject: (displayLabel?: string) =>
@@ -169,8 +176,8 @@ export function createBackendClient({
       post<EventBatchResponse>(`sessions/${sessionId}/activities/${assignmentId}/events:batch`, {
         events,
       }),
-    completeActivity: (sessionId: string, assignmentId: string) =>
-      post<BackendSession>(`sessions/${sessionId}/activities/${assignmentId}/complete`),
+    completeActivity: (sessionId: string, assignmentId: string, attentionTelemetry?: import("@/features/attention/attention-types").SessionTelemetrySummary | null) =>
+      post<BackendSession>(`sessions/${sessionId}/activities/${assignmentId}/complete`, attentionTelemetry ? { attentionTelemetry } : undefined),
     getSessionSummaries: (sessionId: string) =>
       request<BackendActivitySummary[]>(`sessions/${sessionId}/summary`),
 

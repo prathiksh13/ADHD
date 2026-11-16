@@ -14,10 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
-import { useBackendSync } from "@/features/backend/backend-sync-provider";
+import { useBackendSync, useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
+import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
+import { CloudSyncSettings } from "@/features/firebase/cloud-sync-settings";
 import { ResearchConsentCard } from "@/features/backend/research-consent-card";
 import { ERASURE_CONFIRMATION_PHRASE, type AccessLogEntry } from "@/lib/backend/audit";
-import { validateCaregiverId, type CaregiverShare } from "@/lib/backend/caregiver";
 import type { DataErasureResult } from "@/lib/backend/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -30,173 +31,6 @@ function triggerDownload(filename: string, json: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function CaregiverAccessCard() {
-  const { listCaregivers, shareWithCaregiver, stopSharing, subjectId, status } = useBackendSync();
-  const [shares, setShares] = useState<CaregiverShare[] | null>(null);
-  const [caregiverId, setCaregiverId] = useState("");
-  const [fieldError, setFieldError] = useState<string | undefined>();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const inputId = useId();
-
-  const load = useCallback(async () => {
-    try {
-      setShares(await listCaregivers());
-      setError(null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Caregiver access could not be loaded.");
-    }
-  }, [listCaregivers]);
-
-  useEffect(() => {
-    if (status === "ready" && subjectId) {
-      // Fetching remote data when the page opens is the purpose of this effect.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void load();
-    }
-  }, [load, status, subjectId]);
-
-  async function handleShare() {
-    const problem = validateCaregiverId(caregiverId);
-    setFieldError(problem);
-    if (problem) return;
-
-    setBusy(true);
-    setError(null);
-
-    try {
-      await shareWithCaregiver(caregiverId);
-      setCaregiverId("");
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sharing could not be set up.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleStop(relationshipId: string) {
-    setBusy(true);
-    setError(null);
-
-    try {
-      await stopSharing(relationshipId);
-      setConfirming(null);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sharing could not be stopped.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Caregiver access</CardTitle>
-        <CardDescription>
-          Let a caregiver see your progress, read-only. They see your Digital Twin summary, reports
-          and saved-run summaries — not your trial-by-trial responses, this export, your access log, or
-          any way to change your data or consent. You can stop at any time, and each time they look is
-          recorded in your access log.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!subjectId && status === "ready" ? (
-          <p className="text-sm text-ink-muted">
-            Sharing becomes available after you grant research consent; until then there is nothing to
-            share.
-          </p>
-        ) : null}
-
-        {subjectId ? (
-          <div className="space-y-2">
-            <Label htmlFor={inputId}>Caregiver ID</Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id={inputId}
-                value={caregiverId}
-                onChange={(event) => setCaregiverId(event.target.value)}
-                placeholder="Paste the ID from their Caregiver page"
-                autoComplete="off"
-                spellCheck={false}
-                disabled={busy}
-                aria-invalid={Boolean(fieldError)}
-                className="min-w-0 flex-1"
-              />
-              <Button onClick={() => void handleShare()} disabled={busy || caregiverId.trim().length === 0}>
-                {busy ? "Working…" : "Share with this caregiver"}
-              </Button>
-            </div>
-            {fieldError ? <p className="text-xs text-danger">{fieldError}</p> : null}
-            <p className="text-xs leading-5 text-ink-subtle">
-              A caregiver account is set up by the research team. They copy their ID from the
-              Caregiver page after signing in and give it to you.
-            </p>
-          </div>
-        ) : null}
-
-        {error ? (
-          <Alert tone="danger" title="Caregiver access was not changed">
-            {error}
-          </Alert>
-        ) : null}
-
-        {shares && shares.length > 0 ? (
-          <ul className="space-y-2">
-            {shares.map((share) => (
-              <li
-                key={share.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-xs text-ink-muted"
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-ink">{share.caregiverIdMasked}</span>
-                  <Badge tone={share.active ? "success" : "outline"}>
-                    {share.active ? "Can view" : "Stopped"}
-                  </Badge>
-                  <span className="text-ink-subtle">
-                    {share.active
-                      ? `since ${formatDateTime(share.since)} UTC`
-                      : share.revokedAt
-                        ? `stopped ${formatDateTime(share.revokedAt)} UTC`
-                        : ""}
-                  </span>
-                </span>
-                {share.active ? (
-                  confirming === share.id ? (
-                    <span className="flex gap-2">
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void handleStop(share.id)}
-                      >
-                        Yes, stop sharing
-                      </Button>
-                      <Button variant="ghost" size="sm" disabled={busy} onClick={() => setConfirming(null)}>
-                        Cancel
-                      </Button>
-                    </span>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => setConfirming(share.id)}>
-                      Stop sharing
-                    </Button>
-                  )
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {shares && shares.length === 0 && subjectId ? (
-          <p className="text-sm text-ink-muted">You are not sharing with anyone.</p>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
 }
 
 function ExportCard() {
@@ -456,7 +290,8 @@ function ErasureCard() {
 }
 
 export function DataPrivacyView() {
-  const sync = useBackendSync();
+  const sync = useOptionalBackendSync();
+  if (!sync) return <DirectDataPrivacyView />;
 
   return (
     <div className="space-y-6">
@@ -497,7 +332,7 @@ export function DataPrivacyView() {
 
       <ResearchConsentCard />
 
-      <CaregiverAccessCard />
+
 
       <div className="grid gap-4 xl:grid-cols-2">
         <ExportCard />
@@ -507,4 +342,27 @@ export function DataPrivacyView() {
       <ErasureCard />
     </div>
   );
+}
+
+/** Select controls from the mounted provider, rather than an API URL setting. */
+function DirectDataPrivacyView() {
+  const { account, user } = useFirebaseAuth();
+  const firebase = Boolean(user && account);
+  return <div className="space-y-6">
+    <PageHeader eyebrow="Participant workspace" title="Data & privacy"
+      description={firebase ? "Manage saving to your own Firebase account and understand what is stored." : "Sign in to review your data settings."}
+      actions={<ButtonLink href="/participant" variant="outline">Account overview</ButtonLink>} />
+    <Card><CardHeader><CardTitle>{firebase ? "Your Firebase account data" : "Account required"}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm leading-6 text-ink-muted">{firebase
+          ? "With cloud saving enabled, trial and scored activity summaries save directly to your signed-in Firebase account. History, progress, sessions and Digital Twin read those results. Optional focus-monitor summaries and timestamps are included when monitoring was enabled. Raw webcam frames and raw trial events are not uploaded through this saving path."
+          : "Sign in with your own account to view saved records and manage your saving preferences."}</p>
+        <Alert tone="info" title="Research data controls are unavailable in this mode">
+          Research consent, research export, erasure and access logs require a configured research backend.
+          {firebase ? " Those controls do not manage activity summaries saved directly to Firebase. Turning cloud saving off stops future writes; it does not erase previously saved records." : " No research backend data is loaded or changed here."}
+        </Alert>
+      </CardContent>
+    </Card>
+    {firebase ? <CloudSyncSettings /> : null}
+  </div>;
 }

@@ -4,7 +4,7 @@ import { CptActivity } from "@/features/activities/cpt/cpt-activity";
 export const metadata: Metadata = {
   title: "Continuous Performance Task",
   description:
-    "Interactive demo Continuous Performance Task with practice, scored trials, and an in-memory summary.",
+    "Continuous Performance Task with trial activities, scored runs and your saved results.",
 };
 
 export default function CptPage() {

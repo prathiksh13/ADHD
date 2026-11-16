@@ -69,7 +69,7 @@ export function SessionHistory({ sessions }: { sessions: EegSession[] }) {
         <CardTitle>Preloaded sessions</CardTitle>
         <CardDescription>
           Filter or search preloaded synthetic sessions. Session detail is
-          available for files added through the demo upload flow.
+          available for recordings in your own account.
         </CardDescription>
       </CardHeader>
 
@@ -130,7 +130,7 @@ export function SessionHistory({ sessions }: { sessions: EegSession[] }) {
           <EmptyState
             icon={SearchX}
             title="No matching sessions"
-            description="No demonstration sessions match the current filter and search. Adjust the query or show all sessions."
+            description="No sessions match the current filter and search. Adjust the query or show all sessions."
             action={
               <Button variant="outline" onClick={resetFilters}>
                 Clear filters
@@ -142,7 +142,7 @@ export function SessionHistory({ sessions }: { sessions: EegSession[] }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
             <caption className="sr-only">
-              Demonstration EEG session history with status, signal quality, and
+              EEG session history with status, signal quality, and
               illustrative focus index.
             </caption>
             <thead>
@@ -224,7 +224,7 @@ export function SessionHistory({ sessions }: { sessions: EegSession[] }) {
 
       <CardFooter>
         <p aria-live="polite" className="text-xs text-ink-subtle">
-          Showing {filteredSessions.length} of {sessions.length} demo sessions
+          Showing {filteredSessions.length} of {sessions.length} sessions
         </p>
         <span className="text-xs text-ink-subtle">Synthetic data</span>
       </CardFooter>

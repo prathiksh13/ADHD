@@ -9,8 +9,9 @@ import type { NextConfig } from "next";
  *   break Next.js inline scripts or need 'unsafe-inline' and add little. The directives below
  *   (frame-ancestors, object-src, base-uri, form-action) never block the app's own scripts.
  * - Cross-Origin-Opener-Policy. Firebase sign-in with a popup needs window.opener access.
- * - A camera/microphone allowance. Permissions-Policy denies both because nothing here uses
- *   them; the planned webcam feature must relax `camera` deliberately, with consent.
+ * - A microphone allowance. Microphone remains denied. Camera is allowed for
+ *   the same-origin focus monitor only, which requires an explicit consent
+ *   button and processes every frame locally without recording or uploading.
  */
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -18,7 +19,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
+    value: "camera=(self), microphone=(), geolocation=(), payment=()",
   },
   {
     key: "Content-Security-Policy",

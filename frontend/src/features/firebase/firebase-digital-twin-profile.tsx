@@ -13,6 +13,7 @@ import { buildDigitalTwinProfile } from "@/features/digital-twin/digital-twin-pr
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import { ResearchConsentCard } from "@/features/backend/research-consent-card";
 import { ServerDigitalTwinCard, ServerReportsCard } from "@/features/backend/server-insights";
+import { TwinJournalCard } from "@/features/backend/twin-journal";
 import { CloudSyncSettings } from "@/features/firebase/cloud-sync-settings";
 import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
 import { formatDateTime } from "@/lib/utils";
@@ -54,6 +55,26 @@ export function FirebaseDigitalTwinProfile() {
     return null;
   }
 
+  if (backendSync && toBackend) {
+    return <div className="space-y-6">
+      <PageHeader eyebrow="Participant workspace" title="Your Digital Twin"
+        description="Your activity patterns and everyday goals, together in one place. Compare with your own history, at your own pace."
+        actions={<ButtonLink href="/participant/data" variant="outline">Privacy and data controls</ButtonLink>} />
+      <Alert tone="info" title="What this profile can tell you">
+        See how you performed on each activity and record what matters in everyday life.
+        Task results do not measure ADHD severity or establish a diagnosis.
+        EEG and webcam results are not included in this profile.
+      </Alert>
+      <ResearchConsentCard />
+      <ServerDigitalTwinCard />
+      <TwinJournalCard />
+      <details className="rounded-xl border border-line p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-ink">Saved research reports</summary>
+        <div className="mt-4"><ServerReportsCard /></div>
+      </details>
+    </div>;
+  }
+
   const profile = buildDigitalTwinProfile(cptRuns);
   const persistedSnapshot = account.digitalTwin;
 
@@ -62,10 +83,10 @@ export function FirebaseDigitalTwinProfile() {
       <PageHeader
         eyebrow="Participant workspace"
         title="Digital Twin research profile"
-        description="A descriptive profile derived from this participant account's scored CPT summaries. This is not a learned model, brain simulation, diagnosis, or clinical assessment."
+        description="A descriptive profile derived from your saved activity measurements. The research backend keeps a separate baseline and history for each activity. This is not a diagnosis or clinical assessment."
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="accent" dot>Derived CPT profile</Badge>
+            <Badge tone="accent" dot>{toBackend ? "Personal activity profile" : "Derived CPT profile"}</Badge>
             <Badge tone={account.profile.cloudSyncEnabled ? "brand" : "outline"}>
               {account.profile.cloudSyncEnabled ? "Cloud sync on" : "Cloud sync off"}
             </Badge>
@@ -83,7 +104,7 @@ export function FirebaseDigitalTwinProfile() {
       />
 
       <Alert tone="warning" title="No EEG-derived or predictive profile data">
-        This profile uses frontend CPT measurements only. It does not include
+        This profile uses activity measurements only. It does not include
         EEG features, model inference, clinical classifications, or treatment
         recommendations.{" "}
         {toBackend
@@ -130,8 +151,9 @@ export function FirebaseDigitalTwinProfile() {
       </div>
 
       {backendSync ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-4">
           <ServerDigitalTwinCard />
+          <TwinJournalCard />
           <ServerReportsCard />
         </div>
       ) : null}
@@ -149,10 +171,10 @@ export function FirebaseDigitalTwinProfile() {
             <EmptyState
               icon={Activity}
               title="No scored CPT summaries available"
-              description="Complete a scored CPT demonstration to derive a profile. No EEG, model, or clinical values are invented."
+              description="Complete a scored CPT activity to derive a profile. No EEG, model, or clinical values are invented."
               action={
                 <ButtonLink href="/participant/activities/cpt">
-                  Open the CPT demo
+                  Open the CPT
                 </ButtonLink>
               }
             />
@@ -283,7 +305,7 @@ export function FirebaseDigitalTwinProfile() {
                     icon={TrendingUp}
                     title="Two scored runs are needed for a trend"
                     description="No trend is inferred from a single or missing observation."
-                    action={<ButtonLink href="/participant/activities/cpt">Run the CPT demo</ButtonLink>}
+                    action={<ButtonLink href="/participant/activities/cpt">Run the CPT</ButtonLink>}
                   />
                 </CardContent>
               </Card>

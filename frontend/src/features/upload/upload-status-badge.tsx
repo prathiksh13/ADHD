@@ -5,7 +5,7 @@ const statusConfig: Record<
   UploadSessionStatus,
   { label: string; tone: BadgeTone }
 > = {
-  processing: { label: "Demo processing", tone: "brand" },
+  processing: { label: "Processing", tone: "brand" },
   complete: { label: "Ready for review", tone: "success" },
   failed: { label: "Failed", tone: "danger" },
 };

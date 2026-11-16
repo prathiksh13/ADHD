@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { DemoAuthProvider } from "@/features/auth/demo-auth-provider";
 import { FirebaseAuthProvider } from "@/features/auth/firebase-auth-provider";
 import "./globals.css";
 
@@ -41,9 +40,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body className="min-h-full">
-        <DemoAuthProvider>
-          <FirebaseAuthProvider>{children}</FirebaseAuthProvider>
-        </DemoAuthProvider>
+        <FirebaseAuthProvider>{children}</FirebaseAuthProvider>
       </body>
     </html>
   );

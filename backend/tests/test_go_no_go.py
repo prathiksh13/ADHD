@@ -80,7 +80,9 @@ def test_scoring_counts_omissions_and_commissions():
     assert len(metrics["block_metrics"]) == 4
 
 
-def test_end_to_end_session_is_scored_by_the_server_and_kept_out_of_the_twin(test_app, participant_headers):
+def test_end_to_end_session_is_scored_by_the_server_and_included_in_the_activity_twin(
+    test_app, participant_headers
+):
     _, client = test_app
     client.get("/api/v1/users/me", headers=participant_headers)
     subject = _create_subject(client, participant_headers)
@@ -102,10 +104,10 @@ def test_end_to_end_session_is_scored_by_the_server_and_kept_out_of_the_twin(tes
     assert summaries[0]["metrics"]["commissionErrorCount"] == 1
     assert summaries[0]["calculationVersion"] == "backend-go-no-go-scoring-v1"
 
-    # The CPT-based profile, progress and reports must not include it.
+    # The activity profile includes this task; CPT progress and reports stay CPT-only.
     sid = subject["id"]
     twin = client.get(f"/api/v1/subjects/{sid}/digital-twin", headers=participant_headers).json()
-    assert twin["status"] == "insufficient_data" and twin["version"] == 0
+    assert twin["status"] == "insufficient_data" and twin["version"] == 1
     progress = client.get(f"/api/v1/subjects/{sid}/progress", headers=participant_headers).json()
     assert progress["summaryCount"] == 0
     report = client.post(

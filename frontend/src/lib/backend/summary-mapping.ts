@@ -66,7 +66,6 @@ export function summaryToCptRun(
     mode: "scored",
     completedAt: summary.createdAt,
     events: [],
-    isDemo: true,
     trialCount: metrics.trialCount,
     targetCount: metrics.targetCount,
     nonTargetCount: metrics.nonTargetCount,

@@ -40,6 +40,7 @@ same operation. No data migration or Firestore rules deployment is performed.
 | `POST` | `/api/v1/sessions/{session_id}/activities/{assignment_id}/start`, `/events:batch`, `/complete`, `/skip` | CPT-only validated event workflow; stable per-trial idempotency. |
 | `POST` | `/api/v1/sessions/{session_id}/feeling-checkins` | Participant-owned pre/post 1–5 mood/energy check-in; active research consent required. |
 | `GET` | `/api/v1/sessions/{session_id}/summary` | Server-persisted summary list. |
+| `POST` | `/api/sessions/analyze` | **Authenticated, stateless.** Accepts derived EEG probability/predicted class, theta-beta ratios, frontal alpha asymmetry, spectral entropy, SHAP values, task accuracy/RT/errors/block progression, webcam focus/off-screen root causes/blink/alert/emotion timelines, and EEG epoch timestamps (top-level or nested) only. Returns executive summary, EEG artifact/cleanliness analysis, concordance/phenotype, minute-level overlay, root-cause/recovery-speed distraction breakdown and non-diagnostic recommendations. Session metadata and timestamps are optional. Does not persist results, accept raw video/audio, or diagnose; body capped at 2 MiB. |
 | `GET` | `/api/v1/subjects/{subject_id}/progress` | Subject-authorized aggregate of persisted summary records. |
 | `GET` | `/api/v1/subjects/{subject_id}/activity-summaries` | Stable cursor-paginated summary history. |
 | `GET` | `/api/v1/subjects/{subject_id}/digital-twin`, `/history` | Current descriptive profile and immutable versions. |

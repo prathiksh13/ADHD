@@ -17,8 +17,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { DemoNotice } from "@/components/feedback/demo-notice";
+
 import { PageHeader } from "@/components/layout/page-header";
+import { useActivityAttentionMonitor, ActivityAttentionStatus } from "@/features/attention/attention-monitor-provider";
+
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -31,9 +33,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  participantDemoMeta,
-} from "@/data/demo/participant";
+
 import { useActivitySessions } from "@/features/activities/activity-session-store";
 import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
 import {
@@ -71,7 +71,7 @@ function CptRunDetails() {
       <CardHeader>
         <CardTitle>Run details</CardTitle>
         <CardDescription>
-          A fixed, reproducible sequence keeps every demo run comparable.
+          A fixed, reproducible sequence keeps every activity run comparable.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -147,12 +147,14 @@ export function CptActivity() {
   const firebaseAuth = useFirebaseAuth();
   const toBackend = storageMode === "firebase" && persistenceTarget === "backend";
 
+
   const [phase, setPhase] = useState<CptPhase>("intro");
   const [mode, setMode] = useState<TrialMode>("practice");
   const [trialIndex, setTrialIndex] = useState(0);
   const [showStimulus, setShowStimulus] = useState(false);
   const [responded, setResponded] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const attention = useActivityAttentionMonitor({ activityId: "cpt", isActive: phase === "active" && !isPaused });
   const [practiceEvents, setPracticeEvents] = useState<CptTrialEvent[]>([]);
   const [lastPracticeEvent, setLastPracticeEvent] =
     useState<CptTrialEvent | null>(null);
@@ -221,6 +223,7 @@ export function CptActivity() {
 
   const handleStartScored = useCallback(() => {
     resetRunState();
+
     setMode("scored");
     setShowStimulus(true);
     setPhase("active");
@@ -229,6 +232,7 @@ export function CptActivity() {
 
   const handleReturnToIntro = useCallback(() => {
     resetRunState();
+
     setMode("practice");
     setPhase("intro");
   }, [resetRunState]);
@@ -314,6 +318,7 @@ export function CptActivity() {
         events: nextEvents,
       });
       setRunSummary(summary);
+
       setPhase("summary");
       return;
     }
@@ -322,11 +327,19 @@ export function CptActivity() {
     setLastPracticeEvent(null);
     setShowStimulus(true);
     setTrialIndex(trialIndex + 1);
-  }, [clearTrialTimers, mode, trialIndex, saveCptRun, participantId]);
+  }, [
+    clearTrialTimers,
+    mode,
+    trialIndex,
+    saveCptRun,
+    participantId,
+
+  ]);
 
   const handleContinuePractice = useCallback(() => {
     if (trialIndex >= CPT_PRACTICE_TRIALS.length - 1) {
       setPracticeMetrics(calculateCptMetrics(practiceEventsRef.current));
+      saveCptRun({ participantId, mode: "practice", events: practiceEventsRef.current });
       setPhase("practice-summary");
       return;
     }
@@ -337,7 +350,7 @@ export function CptActivity() {
     setTrialIndex(trialIndex + 1);
     setPhase("active");
     focusRespondRef.current = true;
-  }, [trialIndex]);
+  }, [trialIndex, participantId, saveCptRun]);
 
   useEffect(() => {
     if (phase !== "active" || isPaused) {
@@ -455,11 +468,11 @@ export function CptActivity() {
       <PageHeader
         eyebrow="Participant workspace"
         title="Continuous Performance Task"
-        description="A short visual sustained-attention exercise. Watch for the target letter, respond with Space or the Respond button, and review a trial-by-trial demo summary."
+        description="A short visual sustained-attention exercise. Watch for the target letter, respond with Space or the Respond button, and review a trial-by-trial summary."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="brand" dot>
-              Demo activity
+              Cognitive activity
             </Badge>
             <span className="text-xs text-ink-subtle">
               Target {CPT_TARGET_STIMULUS} · {CPT_SCORED_TRIALS.length} scored
@@ -475,10 +488,8 @@ export function CptActivity() {
         }
       />
 
-      {storageMode === "memory" ? (
-        <DemoNotice meta={participantDemoMeta} />
-      ) : (
-        <Alert tone="warning" title="CPT demonstration task">
+      {(
+        <Alert tone="warning" title="CPT research task">
           {toBackend
             ? "The task runs in the browser. If you have granted research consent, each scored run is sent to the research backend, which stores the trial events (stimulus, whether you responded, response time) and calculates the summary. Practice runs and EEG files are never uploaded."
             : "The task and scoring run in the browser. If cloud sync is enabled, summary metrics and CPT session metadata may be stored in Firebase; raw trial events and EEG files are not uploaded."}
@@ -486,10 +497,14 @@ export function CptActivity() {
       )}
 
       <Alert tone="warning" title="Not a clinical assessment">
-        This CPT is a frontend demonstration of a visual attention task. It is
-        not clinically validated, does not produce a diagnosis, and does not
-        send data to a server.
+        This CPT is a browser-based visual attention task. It is
+        not clinically validated and does not produce a diagnosis. The optional
+        focus monitor keeps raw video in this tab and sends only derived
+        timestamps and numeric telemetry.
       </Alert>
+
+      <ActivityAttentionStatus isActive={phase === "active" && !isPaused} />
+      {attention.status.metrics.visualCue && phase === "active" && !isPaused ? <p role="status" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">Focus Alert — Eyes back on the activity</p> : null}
 
       {phase === "intro" ? (
         <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
@@ -558,6 +573,7 @@ export function CptActivity() {
             </CardContent>
 
             <CardFooter className="flex-wrap">
+              <Button onClick={handleStartScored}>Start scored task</Button>
               <Button onClick={handleStartPractice}>
                 <Play aria-hidden="true" className="size-4" />
                 Start {CPT_PRACTICE_TRIALS.length}-trial practice
@@ -573,6 +589,7 @@ export function CptActivity() {
       ) : null}
 
       {phase === "active" ? (
+        <div data-attention-activity="cpt" className={attention.status.metrics.visualCue ? "attention-cue" : undefined}>
         <Card>
           <CardHeader className="flex-row items-start justify-between gap-3">
             <div className="space-y-1">
@@ -698,6 +715,7 @@ export function CptActivity() {
             </p>
           </CardContent>
         </Card>
+        </div>
       ) : null}
 
       {phase === "practice-feedback" &&
@@ -779,9 +797,8 @@ export function CptActivity() {
         <>
           {storageMode === "firebase" && !cloudSyncEnabled ? (
             <Alert tone="info" title="This run is not synchronized">
-              Cloud sync is off. This run remains in browser memory and will not
-              be uploaded later automatically. Enable synchronization before
-              future runs to save summary fields.
+              Cloud sync is off. Enable Firebase saving above to save this visit&apos;s
+              activity summaries to your account.
             </Alert>
           ) : null}
           <CptSummary
@@ -790,7 +807,7 @@ export function CptActivity() {
               toBackend
                 ? "The scored run is complete. With your research consent it is sent to the research backend, which validates the trials and calculates the summary."
                 : storageMode === "firebase" && cloudSyncEnabled
-                ? "The scored run is complete. Summary metrics and CPT session metadata are eligible for account sync; raw trial events stay in the browser."
+                ? "The scored run is complete. Its summary is eligible for account saving; raw trial events stay in the browser."
                 : "The scored run is complete. Its browser summary resets on reload unless cloud sync was enabled before the run."
             }
             mode="scored"
@@ -840,7 +857,7 @@ export function CptActivity() {
           The CPT uses a deterministic sequence of{" "}
           {CPT_SCORED_TRIALS.length} scored trials with{" "}
           {CPT_SCORED_TRIALS.filter((trial) => trial.isTarget).length} target
-          trials. It is included for interface demonstration and research
+          trials. It is included for practice and research
           prototyping only.
         </p>
       </div>

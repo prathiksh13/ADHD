@@ -49,6 +49,53 @@ const alice = () => env.authenticatedContext(ALICE).firestore();
 const bob = () => env.authenticatedContext(BOB).firestore();
 const anon = () => env.unauthenticatedContext().firestore();
 
+describe("direct participant activity results", () => {
+  const attention = { schemaVersion: 1, provenance: "on-device-heuristic-v1", calibrationComplete: true,
+    eventsTruncated: false, observedDurationMs: 10000, focusPercentage: 90, totalBlinks: 1,
+    meanBlinkRatePerMin: 6, distractionCount: 1, avgRecoveryLatencyMs: 500, emotionTimeline: [], telemetryEvents: [],
+    sessionDurationMs: 12500, faceVisiblePercentage: 100, totalDistractionDurationMs: 1000, longestDistractionMs: 1000 };
+  const summary = (activityId = "stroop", mode = "scored", size = 6) => ({ activityId, mode,
+    cells: Array(size).fill("75%"), completedAt: Timestamp.fromMillis(Date.now() - 1000),
+    schemaVersion: 1, provenance: "participant-browser-summary-v1" });
+  it("saves bounded telemetry only with the owner's cloud saving preference", async () => {
+    await seedProfile(ALICE, true);
+    await assertSucceeds(setDoc(doc(alice(), "users", ALICE, "activityResults", "telemetry"), { ...summary(), attentionTelemetry: attention }));
+    await assertFails(setDoc(doc(alice(), "users", ALICE, "activityResults", "raw"), { ...summary(), attentionTelemetry: { ...attention, rawFrames: [] } }));
+    await assertFails(setDoc(doc(alice(), "users", ALICE, "activityResults", "oversize"), { ...summary(), attentionTelemetry: { ...attention, telemetryEvents: Array(1001).fill({}) } }));
+    await seedProfile(ALICE, false);
+    await assertFails(setDoc(doc(alice(), "users", ALICE, "activityResults", "disabled"), { ...summary(), attentionTelemetry: attention }));
+  });
+  it("allows both modes for all eleven activities with explicit cloud consent", async () => {
+    await seedProfile(ALICE, true);
+    for (const [activity, count] of [["cpt", 4], ["stroop", 6], ["go-no-go", 6], ["n-back", 6], ["stop-signal", 5], ["task-switching", 6], ["visual-search", 5], ["planning-puzzle", 4], ["visual-sequence", 3], ["time-perception", 4], ["multiple-object-tracking", 3]] as const) {
+      for (const mode of ["practice", "scored"]) {
+        const ref = doc(alice(), "users", ALICE, "activityResults", `${activity}-${mode}`);
+        await assertSucceeds(setDoc(ref, summary(activity, mode, count)));
+        await assertSucceeds(getDoc(ref));
+      }
+    }
+  });
+  it("denies other accounts, signed-out clients, writes without consent and malformed records", async () => {
+    await seedProfile(ALICE, false);
+    const ref = doc(alice(), "users", ALICE, "activityResults", "one");
+    await assertFails(setDoc(ref, summary()));
+    await seedProfile(ALICE, true);
+    await assertFails(setDoc(doc(bob(), "users", ALICE, "activityResults", "one"), summary()));
+    await assertFails(getDocs(collection(bob(), "users", ALICE, "activityResults")));
+    await assertFails(getDocs(collection(anon(), "users", ALICE, "activityResults")));
+    await assertFails(setDoc(ref, { ...summary(), rawEvents: [] }));
+    await assertFails(setDoc(ref, summary("unknown")));
+    await assertFails(setDoc(ref, summary("stroop", "invalid")));
+    await assertFails(setDoc(ref, { ...summary(), cells: Array(6).fill(42) }));
+    await assertFails(setDoc(ref, { ...summary(), cells: Array(6).fill("x".repeat(101)) }));
+    await assertSucceeds(setDoc(ref, summary()));
+    await assertFails(updateDoc(ref, { mode: "practice" }));
+    await seedProfile(ALICE, false);
+    await assertSucceeds(getDoc(ref));
+    await assertFails(setDoc(doc(alice(), "users", ALICE, "activityResults", "two"), summary()));
+  });
+});
+
 function profile(overrides: Record<string, unknown> = {}) {
   return {
     uid: ALICE,

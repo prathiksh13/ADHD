@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.session_analysis import router as session_analysis_router
 from app.api.v1.eeg import router as eeg_router
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
@@ -127,7 +128,13 @@ def create_app(
         hsts=settings.environment.lower() == "production",
         # Allow two recordings (EC + EO) plus multipart overhead; each file is
         # still capped individually by the endpoint.
-        path_max_request_bytes={"/predict": settings.eeg_max_upload_bytes * 2 + 1_048_576},
+        path_max_request_bytes={
+            "/predict": settings.eeg_max_upload_bytes * 2 + 1_048_576,
+            "/api/sessions/analyze": 2 * 1_048_576,
+            f"{settings.api_v1_prefix}/subjects/{{subject_id}}/eeg-analyses": settings.eeg_max_upload_bytes
+            * 2
+            + 1_048_576,
+        },
     )
 
     @app.exception_handler(ApiError)
@@ -196,6 +203,7 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(eeg_router)
+    app.include_router(session_analysis_router)
 
     if settings.metrics_token:
         # Off unless a token is configured; not part of the public API schema.

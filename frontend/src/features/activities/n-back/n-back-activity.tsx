@@ -1,4 +1,5 @@
 "use client";
+import { useActivityAttentionMonitor, ActivityAttentionStatus } from "@/features/attention/attention-monitor-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -14,7 +15,7 @@ import {
   N_BACK_SCORED_TRIALS,
   nBackLevel,
 } from "@/features/activities/n-back/n-back-config";
-import { recordRun } from "@/features/activities/run-log";
+import { recordRun, markRunSaved } from "@/features/activities/run-log";
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import type { NBackRunView } from "@/lib/backend/summary-mapping";
 import { formatDateTime } from "@/lib/utils";
@@ -86,6 +87,7 @@ const RULE: Record<1 | 2, string> = {
 export function NBackActivity() {
   const sync = useOptionalBackendSync();
   const [phase, setPhase] = useState<Phase>("intro");
+  const attention = useActivityAttentionMonitor({ activityId: "n-back", isActive: phase === "running" });
   const [mode, setMode] = useState<Mode>("practice");
   const [trialIndex, setTrialIndex] = useState(0);
   const [showLetter, setShowLetter] = useState(false);
@@ -128,6 +130,7 @@ export function NBackActivity() {
       setResult(summary);
 
       if (finishedMode === "practice") {
+        recordRun("n-back", runId.current, summary, "practice");
         setPhase("practice-done");
         return;
       }
@@ -140,7 +143,9 @@ export function NBackActivity() {
       if (sync && sync.consent.status === "granted") {
         setSave({ status: "saving" });
         try {
-          const outcome = await sync.persistNBackRun(runId.current, events.current);
+          const completedId = runId.current;
+          const outcome = await sync.persistNBackRun(completedId, events.current);
+          markRunSaved(completedId, outcome.serverRunId);
           setSave({ status: "saved", message: outcome.message });
         } catch (error) {
           setSave({
@@ -206,11 +211,13 @@ export function NBackActivity() {
   const current = trials[trialIndex];
 
   return (
-    <div className="space-y-6">
+    <div data-attention-activity="n-back" className={attention.status.metrics.visualCue && phase === "running" ? "space-y-6 attention-cue" : "space-y-6"}>
+      <ActivityAttentionStatus isActive={phase === "running"} />
+      {attention.status.metrics.visualCue && phase === "running" ? <p role="status" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">Focus Alert — Eyes back on the activity</p> : null}
       <PageHeader
         eyebrow="Cognitive activity"
         title="N-back"
-        description="Letters appear one at a time. Press when a letter matches the one shown 1 step earlier, then 2 steps earlier. It measures working memory. This is a demonstration task, not a clinical assessment."
+        description="Letters appear one at a time. Press when a letter matches the one shown 1 step earlier, then 2 steps earlier. It measures working memory. This is a research task, not a clinical assessment."
       />
 
       {phase === "intro" ? (
@@ -230,7 +237,7 @@ export function NBackActivity() {
               is {N_BACK_LEVEL_LENGTH} letters of 1-back, then {N_BACK_LEVEL_LENGTH} of 2-back. Practice is
               never saved.
             </p>
-            <Button onClick={() => start("practice")}>Start practice</Button>
+            <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => start("practice")}>Trial activity (practice)</Button><Button onClick={() => start("scored")}>Start scored task</Button></div>
           </CardContent>
         </Card>
       ) : null}
@@ -276,7 +283,7 @@ export function NBackActivity() {
         <Card>
           <CardHeader>
             <CardTitle>Practice complete</CardTitle>
-            <CardDescription>Practice results are not saved.</CardDescription>
+            <CardDescription>Trial results appear in visit history and are excluded from scored progress.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Summary result={result} mode="practice" />
@@ -297,7 +304,7 @@ export function NBackActivity() {
             <CardDescription>
               {sync
                 ? "With your research consent the run is sent to the research backend, which checks the trials and calculates the results."
-                : "These results live in this browser tab only and are cleared when you reload."}
+                : "Enable Firebase saving above to keep this summary in your account. Saved results appear in activity history, progress, sessions and Digital Twin."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -320,7 +327,7 @@ export function NBackActivity() {
               </Alert>
             ) : null}
             <p className="text-xs text-ink-subtle">
-              N-back results are kept separate from the CPT-based Digital Twin for now.
+Scored results update your progress and Digital Twin activity view.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => start("scored")}>Run again</Button>
@@ -373,7 +380,7 @@ function HistoryCard({
         <CardDescription>
           {serverRuns !== null
             ? "Scored runs saved to the research backend with your consent, newest first."
-            : "Runs from this visit only. In demonstration mode nothing is stored, so this list is cleared when you reload."}
+            : "This list shows current-visit runs. View activity history for results saved to your account."}
         </CardDescription>
       </CardHeader>
       <CardContent>

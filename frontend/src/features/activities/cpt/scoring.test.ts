@@ -190,7 +190,7 @@ describe("aggregateCptMetrics", () => {
 });
 
 describe("buildCptRunSummary", () => {
-  it("labels summaries as demo data and embeds the metrics", () => {
+  it("embeds the measured metrics in an activity summary", () => {
     const events = scoredEvents((_i, t) => t);
     const summary = buildCptRunSummary({
       id: "run-1",
@@ -199,7 +199,7 @@ describe("buildCptRunSummary", () => {
       completedAt: "2026-01-01T00:00:00.000Z",
       events,
     });
-    expect(summary.isDemo).toBe(true);
+
     expect(summary.activityId).toBe("cpt");
     expect(summary.accuracyPercent).toBe(100);
     expect(summary.events).toBe(events);

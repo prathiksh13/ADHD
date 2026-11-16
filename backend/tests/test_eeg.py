@@ -103,6 +103,11 @@ def test_predict_returns_expected_contract(eeg_app):
     )
     assert response.status_code == 200
     body = response.json()
+    preview = body["signal_preview"]
+    assert len(preview["channels"]) == len(preview["samples"]) == 8
+    assert preview["sample_rate_hz"] == 125
+    assert len(preview["samples"][0]) == 500
+    assert all(np.isfinite(value) for channel in preview["samples"] for value in channel)
     assert set(body) == {
         "prediction",
         "probability",
@@ -112,6 +117,8 @@ def test_predict_returns_expected_contract(eeg_app):
         "ec_eo_recording_used",
         "biomarker_highlights",
         "biomarker_breakdown",
+        "signal_preview",
+        "analysis",
     }
     assert body["prediction"] == "ADHD"
     assert body["probability"] == 0.8

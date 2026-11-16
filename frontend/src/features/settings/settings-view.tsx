@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldHint, Input, Label } from "@/components/ui/input";
 import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
+import { AttentionMonitorSettingsCard } from "@/features/attention/attention-monitor-provider";
 import {
   DAY_LABELS,
   isValidTime,
@@ -47,8 +48,7 @@ function ProfileCard() {
         <CardHeader>
           <CardTitle>Profile</CardTitle>
           <CardDescription>
-            Your profile can be edited when you are signed in with an account. In demonstration mode
-            there is no account to edit.
+            Sign in to your account to edit your profile.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -231,6 +231,7 @@ export function SettingsView() {
   return (
     <div className="space-y-6">
       <ProfileCard />
+      <AttentionMonitorSettingsCard />
       <RemindersCard />
     </div>
   );

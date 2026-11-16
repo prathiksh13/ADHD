@@ -61,7 +61,7 @@ export function CloudSyncSettings() {
           <p className="text-xs leading-5 text-ink-subtle">
             {apiBacked
               ? "When enabled, saved report summaries are stored under this authenticated UID in Firebase. Scored CPT runs, including their trial events, are handled by the research backend under your research consent instead."
-              : "When enabled, completed CPT summaries, CPT application-session metadata, saved report summaries, and the supported Digital Twin snapshot are stored under this authenticated UID. Raw trial events, response timelines, EEG files, and EEG signals are not uploaded."}
+              : "When enabled, trial and scored summaries from all activities save under your authenticated UID. History, progress, sessions and Digital Twin use those saved summaries. Optional focus-monitor measurements and timestamps are included if monitoring was enabled. Raw webcam frames, trial events and EEG recordings are not uploaded through this activity saving path."}
           </p>
           <p className="text-xs leading-5 text-ink-subtle">
             Turning sync off stops future writes; it does not delete data already

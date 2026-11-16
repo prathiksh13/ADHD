@@ -1,4 +1,5 @@
 "use client";
+import { useActivityAttentionMonitor, ActivityAttentionStatus } from "@/features/attention/attention-monitor-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,7 +23,7 @@ import {
   summarizePlanningPuzzle,
   type PlanningPuzzleSummary,
 } from "@/features/activities/planning-puzzle/planning-puzzle-scoring";
-import { recordRun } from "@/features/activities/run-log";
+import { recordRun, markRunSaved } from "@/features/activities/run-log";
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import type { PlanningPuzzleRunView } from "@/lib/backend/summary-mapping";
 import type { BackendPlanningPuzzleEvent } from "@/lib/backend/types";
@@ -119,6 +120,7 @@ function Pegs({
 export function PlanningPuzzleActivity() {
   const sync = useOptionalBackendSync();
   const [phase, setPhase] = useState<Phase>("intro");
+  const attention = useActivityAttentionMonitor({ activityId: "planning-puzzle", isActive: phase === "running" });
   const [mode, setMode] = useState<Mode>("practice");
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const [pegs, setPegs] = useState<PegState>(startingPegs(3));
@@ -152,6 +154,7 @@ export function PlanningPuzzleActivity() {
       setSummary(result);
 
       if (finishedMode === "practice") {
+        recordRun("planning-puzzle", runId.current, result, "practice");
         setPhase("practice-done");
         return;
       }
@@ -164,7 +167,9 @@ export function PlanningPuzzleActivity() {
       if (sync && sync.consent.status === "granted") {
         setSave({ status: "saving" });
         try {
-          const outcome = await sync.persistPlanningPuzzleRun(runId.current, events.current);
+          const completedId = runId.current;
+          const outcome = await sync.persistPlanningPuzzleRun(completedId, events.current);
+          markRunSaved(completedId, outcome.serverRunId);
           setSave({ status: "saved", message: outcome.message });
         } catch (error) {
           setSave({
@@ -262,11 +267,13 @@ export function PlanningPuzzleActivity() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-attention-activity="planning-puzzle" className={attention.status.metrics.visualCue && phase === "running" ? "space-y-6 attention-cue" : "space-y-6"}>
+      <ActivityAttentionStatus isActive={phase === "running"} />
+      {attention.status.metrics.visualCue && phase === "running" ? <p role="status" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">Focus Alert — Eyes back on the activity</p> : null}
       <PageHeader
         eyebrow="Cognitive activity"
         title="Planning Puzzle"
-        description="Move a stack of discs from the first peg to the goal peg, one disc at a time, never putting a larger disc on a smaller one. It measures planning ahead. This is a demonstration task, not a clinical assessment."
+        description="Move a stack of discs from the first peg to the goal peg, one disc at a time, never putting a larger disc on a smaller one. It measures planning ahead. This is a research task, not a clinical assessment."
       />
 
       {phase === "intro" ? (
@@ -284,7 +291,7 @@ export function PlanningPuzzleActivity() {
               A practice puzzle comes first, then {PLANNING_SCORED_PUZZLES.length} scored puzzles. Practice is
               never saved.
             </p>
-            <Button onClick={() => start("practice")}>Start practice</Button>
+            <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => start("practice")}>Trial activity (practice)</Button><Button onClick={() => start("scored")}>Start scored task</Button></div>
           </CardContent>
         </Card>
       ) : null}
@@ -313,7 +320,7 @@ export function PlanningPuzzleActivity() {
         <Card>
           <CardHeader>
             <CardTitle>Practice complete</CardTitle>
-            <CardDescription>Practice results are not saved.</CardDescription>
+            <CardDescription>Trial results appear in visit history and are excluded from scored progress.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Summary summary={summary} />
@@ -334,7 +341,7 @@ export function PlanningPuzzleActivity() {
             <CardDescription>
               {sync
                 ? "With your research consent the run is sent to the research backend, which replays the moves and calculates the results."
-                : "These results live in this browser tab only and are cleared when you reload."}
+                : "Enable Firebase saving above to keep this summary in your account. Saved results appear in activity history, progress, sessions and Digital Twin."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -357,7 +364,7 @@ export function PlanningPuzzleActivity() {
               </Alert>
             ) : null}
             <p className="text-xs text-ink-subtle">
-              Planning Puzzle results are kept separate from the CPT-based Digital Twin for now.
+Scored results update your progress and Digital Twin activity view.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => start("scored")}>Run again</Button>
@@ -406,7 +413,7 @@ function HistoryCard({
         <CardDescription>
           {serverRuns !== null
             ? "Scored runs saved to the research backend with your consent, newest first."
-            : "Runs from this visit only. In demonstration mode nothing is stored, so this list is cleared when you reload."}
+            : "This list shows current-visit runs. View activity history for results saved to your account."}
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
-import { CptProgressView } from "@/features/activities/cpt/cpt-progress-view";
+import { ProgressOverview } from "@/features/activities/progress-overview";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Progress",
   description:
-    "In-memory CPT progress with aggregate descriptive metrics and multi-run accuracy and reaction-time trends.",
+    "Track how scored activity results change over repeated runs, one activity at a time.",
 };
+export const instant = false;
 
-export default function ProgressPage() {
-  return <CptProgressView />;
+export default function Page() {
+  return <ProgressOverview />;
 }

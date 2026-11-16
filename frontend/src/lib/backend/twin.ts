@@ -136,6 +136,8 @@ export function parseInsights(profile: Json): ServerTwinInsights | null {
 }
 
 export interface ServerTwinView {
+  activityProfiles: TwinActivityProfile[];
+  totalSummaryCount: number;
   version: number;
   status: "available" | "insufficient_data";
   summaryCount: number;
@@ -153,12 +155,76 @@ export interface ServerTwinView {
   insights: ServerTwinInsights | null;
 }
 
+export interface TwinActivityProfile {
+  personalBaseline: PersonalBaseline | null;
+  activityCode: string;
+  title: string;
+  runCount: number;
+  latestAt: string | null;
+  qualityFlags: string[];
+  measurements: { key: string; latest: number; baseline: number | null; change: number | null }[];
+}
+
+export interface PersonalBaseline {
+  status: "building" | "baseline_ready" | "comparison_ready";
+  comparableRunCount: number;
+  observationDays: number;
+  runsNeeded: number;
+  qualityFlags: string[];
+  measurements: { key: string; baseline: number | null; recent: number | null; change: number | null }[];
+  trend: { sourceId: string; completedAt: string | null; metrics: Record<string, number> }[];
+}
+
+function parsePersonalBaseline(value: unknown): PersonalBaseline | null {
+  const item = asRecord(value);
+  if (!item) return null;
+  return {
+    status: item.status === "comparison_ready" || item.status === "baseline_ready" ? item.status : "building",
+    comparableRunCount: asNumber(item.comparable_run_count) ?? 0,
+    observationDays: asNumber(item.observation_days) ?? 0,
+    runsNeeded: asNumber(item.runs_needed) ?? 6,
+    qualityFlags: Array.isArray(item.quality_flags)
+      ? item.quality_flags.filter((flag): flag is string => typeof flag === "string") : [],
+    measurements: asArray(item.measurements).flatMap((metric) => {
+      const key = asString(metric.key);
+      return key ? [{ key, baseline: asNumber(metric.baseline_median), recent: asNumber(metric.recent_median), change: asNumber(metric.change) }] : [];
+    }),
+    trend: asArray(item.trend).map((point) => ({
+      sourceId: asString(point.source_id) ?? "",
+      completedAt: asString(point.completed_at),
+      metrics: Object.fromEntries(Object.entries(asRecord(point.metrics) ?? {})
+        .filter((entry): entry is [string, number] => asNumber(entry[1]) !== null)),
+    })),
+  };
+}
+
+function parseActivityProfiles(value: unknown): TwinActivityProfile[] {
+  return asArray(value).map((item) => ({
+    personalBaseline: parsePersonalBaseline(item.personal_baseline),
+    activityCode: asString(item.activity_code) ?? "unknown",
+    title: asString(item.title) ?? "Activity",
+    runCount: asNumber(item.run_count) ?? 0,
+    latestAt: asString(item.latest_at),
+    qualityFlags: Array.isArray(item.quality_flags)
+      ? item.quality_flags.filter((flag): flag is string => typeof flag === "string") : [],
+    measurements: asArray(item.measurements).flatMap((metric) => {
+      const key = asString(metric.key);
+      const latest = asNumber(metric.latest);
+      return key && latest !== null
+        ? [{ key, latest, baseline: asNumber(metric.baseline), change: asNumber(metric.change) }]
+        : [];
+    }),
+  }));
+}
+
 export function parseServerTwin(twin: BackendDigitalTwin): ServerTwinView {
   const profile = asRecord(twin.profile) ?? {};
   const change = asRecord(profile.change);
 
   return {
     version: twin.version,
+    activityProfiles: parseActivityProfiles(profile.activity_profiles),
+    totalSummaryCount: asNumber(profile.total_summary_count) ?? asNumber(profile.summary_count) ?? 0,
     status: twin.status,
     summaryCount: asNumber(profile.summary_count) ?? 0,
     metrics: parseAggregate(profile.metrics),

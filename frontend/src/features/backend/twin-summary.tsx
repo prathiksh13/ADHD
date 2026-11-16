@@ -1,3 +1,4 @@
+import { ActivityTwinPanel } from "@/features/backend/activity-twin-panel";
 import { Alert } from "@/components/ui/alert";
 import type { ServerReportView, ServerTwinHistoryEntry, ServerTwinView } from "@/lib/backend/twin";
 import { TwinInsightsPanel } from "@/features/backend/twin-insights";
@@ -10,11 +11,13 @@ export function TwinSummary({
   twin,
   twinHistory,
   emptyMessage,
+  showActivityLinks = false,
 }: {
   loading: boolean;
   twin: ServerTwinView | null;
   twinHistory: ServerTwinHistoryEntry[];
   emptyMessage: string;
+  showActivityLinks?: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -24,14 +27,17 @@ export function TwinSummary({
         </p>
       ) : null}
 
-      {!loading && (!twin || twin.summaryCount === 0) ? (
+      {!loading && (!twin || twin.totalSummaryCount === 0) ? (
         <p className="text-sm leading-6 text-ink-muted">{emptyMessage}</p>
       ) : null}
 
+      {twin && twin.activityProfiles.length > 0 ? (
+        <ActivityTwinPanel activities={twin.activityProfiles} totalRuns={twin.totalSummaryCount} showAction={showActivityLinks} />
+      ) : null}
       {twin && twin.summaryCount > 0 ? (
-        <>
+        <details className="space-y-4 border-t border-line pt-4"><summary className="cursor-pointer text-sm font-semibold text-ink">CPT summary and earlier comparisons</summary>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Saved runs" value={String(twin.summaryCount)} />
+            <Metric label="Saved CPT runs" value={String(twin.summaryCount)} />
             <Metric
               label="Overall accuracy"
               value={display(twin.metrics?.accuracyPercent, "%")}
@@ -73,7 +79,7 @@ export function TwinSummary({
               {twin.qualityFlags.map((flag) => flag.replaceAll("_", " ")).join(" · ")}
             </Alert>
           ) : null}
-        </>
+        </details>
       ) : null}
 
       {twinHistory.length > 0 ? (
@@ -87,8 +93,8 @@ export function TwinSummary({
               >
                 <span className="font-medium text-ink">Version {entry.version}</span>
                 <span>
-                  {entry.sourceCount} run{entry.sourceCount === 1 ? "" : "s"} · accuracy{" "}
-                  {display(entry.accuracyPercent, "%")}
+                  {entry.sourceCount} source run{entry.sourceCount === 1 ? "" : "s"}
+                  {entry.accuracyPercent !== null ? ` · CPT accuracy ${display(entry.accuracyPercent, "%")}` : ""}
                 </span>
                 <span className="font-mono text-ink-subtle">
                   {formatDateTime(entry.createdAt)} UTC · {entry.algorithmVersion}

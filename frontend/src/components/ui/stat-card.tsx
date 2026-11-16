@@ -62,7 +62,6 @@ export function StatCard({ stat }: { stat: DashboardStat }) {
         <span aria-hidden="true" className="text-line-strong">
           ·
         </span>
-        <span className="text-ink-subtle">demo</span>
       </p>
     </Card>
   );

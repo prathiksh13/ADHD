@@ -1,4 +1,5 @@
 import type { BackendClient } from "@/lib/backend/client";
+import { telemetryForRun } from "@/features/attention/telemetry-registry";
 import type {
   BackendActivitySummary,
   BackendCptEvent,
@@ -164,7 +165,9 @@ export async function syncScoredActivity(
 
   if (current()?.status !== "completed") {
     await client.ingestEvents(session.id, assignment.id, events);
-    session = await client.completeActivity(session.id, assignment.id);
+    const prefix = `${activityCode}-run-`;
+    const telemetry = idempotencyKey.startsWith(prefix) ? telemetryForRun(idempotencyKey.slice(prefix.length)) : null;
+    session = telemetry ? await client.completeActivity(session.id, assignment.id, telemetry) : await client.completeActivity(session.id, assignment.id);
   }
 
   const summaries = await client.getSessionSummaries(session.id);

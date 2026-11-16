@@ -35,7 +35,7 @@ export function FirebaseSessionDetail({ sessionId }: { sessionId: string }) {
             <EmptyState
               icon={CircleSlash2}
               title="Session not found in this account"
-              description="This view only reads records owned by the signed-in Firebase UID. It does not substitute demo EEG sessions."
+              description="This view only reads records owned by the signed-in Firebase UID. Only your own saved records are shown."
               action={
                 <ButtonLink href="/participant/sessions">
                   Back to account sessions
@@ -53,7 +53,7 @@ export function FirebaseSessionDetail({ sessionId }: { sessionId: string }) {
       <PageHeader
         eyebrow="Participant workspace"
         title="CPT application session"
-        description="Saved application metadata for a completed frontend CPT demonstration. This is not an EEG recording or analysis session."
+        description="Saved application metadata for a completed frontend CPT activity. This is not an EEG recording or analysis session."
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="success">Complete</Badge>

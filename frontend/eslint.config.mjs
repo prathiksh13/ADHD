@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored MediaPipe runtime; third-party generated code is not ours to lint.
+    "public/mediapipe/**",
   ]),
 ]);
 

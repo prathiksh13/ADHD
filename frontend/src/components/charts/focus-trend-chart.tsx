@@ -67,7 +67,7 @@ export function FocusTrendChart({ data }: { data: FocusTrendPoint[] }) {
               fontSize: 12,
             }}
             labelStyle={{ color: chartColors.ink, fontWeight: 600 }}
-            formatter={(value) => [`${value}/100`, "Focus index (demo)"]}
+            formatter={(value) => [`${value}/100`, "Focus index"]}
             labelFormatter={(label) => `Session ${label}`}
           />
           <Area

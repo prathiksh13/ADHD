@@ -51,7 +51,7 @@ export function FeatureImportanceChart({
             labelStyle={{ color: chartColors.ink, fontWeight: 600 }}
             formatter={(value) => [
               `${(Number(value) * 100).toFixed(0)}%`,
-              "Relative importance (demo)",
+              "Relative importance",
             ]}
           />
           <Bar

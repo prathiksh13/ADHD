@@ -2,6 +2,10 @@
 
 **Status:** Accepted; implemented in the FastAPI persistence layer.
 
+Participant summary saving is updated by [ADR-002](adr-002-direct-participant-summaries.md):
+the default participant UI saves summaries directly with the Firebase Web SDK.
+The server responsibilities and subject-scoped research collections below remain.
+
 ## Decision and rationale
 
 Use Firebase Authentication for account identity and Cloud Firestore as the
@@ -50,6 +54,8 @@ retry-stable key is more suitable.
 | `subjects/{subjectId}/sessions/{sessionId}/feelingCheckIns/{pre\|post}` | Consent-gated check-in document with actor and recorded time. |
 | `subjects/{subjectId}/activitySummaries/{assignmentId}` | Server-calculated summary, provenance, calculation version and source IDs. |
 | `subjects/{subjectId}/digitalTwin/current` and `subjects/{subjectId}/digitalTwinHistory/{historyId}` | Current derived profile and immutable versioned snapshots/source summary IDs. History is a sibling collection: `digitalTwin/history/{id}` would be an invalid (odd-length) Firestore document path. |
+| `subjects/{subjectId}/digitalTwin/journal` | Optional participant-owner-only everyday goal and latest 30 dated context check-ins. Excluded from caregiver snapshots. Writes require current research consent; owner export and erasure include it. |
+| `subjects/{subjectId}/eegAnalyses/{analysisId}` | Server-generated EEG result summaries saved only after an explicit save choice and current research consent. Owner-only reads; export/erasure included. No raw recording or waveform samples are stored. |
 | `subjects/{subjectId}/reports/{reportId}` | Idempotent report metadata and derived content. |
 | `subjects/{subjectId}/reportIdempotency/{keyHash}` | Stable retry-key claim and fingerprint for report creation. |
 | `subjects/{subjectId}/webcamFeatureRecords/{recordId}` | Planned compact derived features only; no raw webcam video. |

@@ -1,4 +1,5 @@
 "use client";
+import { useActivityAttentionMonitor, ActivityAttentionStatus } from "@/features/attention/attention-monitor-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -16,7 +17,7 @@ import {
   summarizeTaskSwitching,
   type TaskSwitchingSummary,
 } from "@/features/activities/task-switching/task-switching-scoring";
-import { recordRun } from "@/features/activities/run-log";
+import { recordRun, markRunSaved } from "@/features/activities/run-log";
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import type { TaskSwitchingRunView } from "@/lib/backend/summary-mapping";
 import type { BackendTaskSwitchingEvent } from "@/lib/backend/types";
@@ -70,6 +71,7 @@ function Summary({ summary }: { summary: TaskSwitchingSummary }) {
 export function TaskSwitchingActivity() {
   const sync = useOptionalBackendSync();
   const [phase, setPhase] = useState<Phase>("intro");
+  const attention = useActivityAttentionMonitor({ activityId: "task-switching", isActive: phase === "running" });
   const [mode, setMode] = useState<Mode>("practice");
   const [trialIndex, setTrialIndex] = useState(0);
   const [summary, setSummary] = useState<TaskSwitchingSummary | null>(null);
@@ -112,6 +114,7 @@ export function TaskSwitchingActivity() {
       setSummary(result);
 
       if (finishedMode === "practice") {
+        recordRun("task-switching", runId.current, result, "practice");
         setPhase("practice-done");
         return;
       }
@@ -124,7 +127,9 @@ export function TaskSwitchingActivity() {
       if (sync && sync.consent.status === "granted") {
         setSave({ status: "saving" });
         try {
-          const outcome = await sync.persistTaskSwitchingRun(runId.current, events.current);
+          const completedId = runId.current;
+          const outcome = await sync.persistTaskSwitchingRun(completedId, events.current);
+          markRunSaved(completedId, outcome.serverRunId);
           setSave({ status: "saved", message: outcome.message });
         } catch (error) {
           setSave({
@@ -195,11 +200,13 @@ export function TaskSwitchingActivity() {
   const labels = current ? RULE_LABELS[current.rule] : null;
 
   return (
-    <div className="space-y-6">
+    <div data-attention-activity="task-switching" className={attention.status.metrics.visualCue && phase === "running" ? "space-y-6 attention-cue" : "space-y-6"}>
+      <ActivityAttentionStatus isActive={phase === "running"} />
+      {attention.status.metrics.visualCue && phase === "running" ? <p role="status" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">Focus Alert — Eyes back on the activity</p> : null}
       <PageHeader
         eyebrow="Cognitive activity"
         title="Task Switching"
-        description="Each trial shows a coloured shape and a rule: sort it by COLOUR or by SHAPE. The rule changes now and then. It measures how well a person shifts between two rules. This is a demonstration task, not a clinical assessment, and it needs colour vision."
+        description="Each trial shows a coloured shape and a rule: sort it by COLOUR or by SHAPE. The rule changes now and then. It measures how well a person shifts between two rules. This is a research task, not a clinical assessment, and it needs colour vision."
       />
 
       {phase === "intro" ? (
@@ -214,10 +221,10 @@ export function TaskSwitchingActivity() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-ink-muted">
-              A short practice of {TASK_SWITCHING_PRACTICE_TRIALS.length} trials comes first, then{" "}
-              {TASK_SWITCHING_SCORED_TRIALS.length} scored trials. Practice is never saved.
+              Choose {TASK_SWITCHING_PRACTICE_TRIALS.length} practice trials, or {" "}
+              {TASK_SWITCHING_SCORED_TRIALS.length} scored trials. Practice is shown in visit history and excluded from scored progress.
             </p>
-            <Button onClick={() => start("practice")}>Start practice</Button>
+            <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => start("practice")}>Trial activity (practice)</Button><Button onClick={() => start("scored")}>Start scored task</Button></div>
           </CardContent>
         </Card>
       ) : null}
@@ -259,7 +266,7 @@ export function TaskSwitchingActivity() {
         <Card>
           <CardHeader>
             <CardTitle>Practice complete</CardTitle>
-            <CardDescription>Practice results are not saved.</CardDescription>
+            <CardDescription>Trial results appear in visit history and are excluded from scored progress.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Summary summary={summary} />
@@ -280,7 +287,7 @@ export function TaskSwitchingActivity() {
             <CardDescription>
               {sync
                 ? "With your research consent the run is sent to the research backend, which checks the trials and calculates the results."
-                : "These results live in this browser tab only and are cleared when you reload."}
+                : "Enable Firebase saving above to keep this summary in your account. Saved results appear in activity history, progress, sessions and Digital Twin."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -303,7 +310,7 @@ export function TaskSwitchingActivity() {
               </Alert>
             ) : null}
             <p className="text-xs text-ink-subtle">
-              Task Switching results are kept separate from the CPT-based Digital Twin for now.
+Scored results update your progress and Digital Twin activity view.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => start("scored")}>Run again</Button>
@@ -354,7 +361,7 @@ function HistoryCard({
         <CardDescription>
           {serverRuns !== null
             ? "Scored runs saved to the research backend with your consent, newest first."
-            : "Runs from this visit only. In demonstration mode nothing is stored, so this list is cleared when you reload."}
+            : "This list shows current-visit runs. View activity history for results saved to your account."}
         </CardDescription>
       </CardHeader>
       <CardContent>

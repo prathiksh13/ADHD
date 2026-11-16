@@ -9,7 +9,7 @@ import { ButtonLink } from "@/components/ui/button";
 const navLinks = [
   { label: "Platform", href: "/#platform" },
   { label: "Workflow", href: "/#workflow" },
-  { label: "Research", href: "/#research-transparency" },
+  { label: "Privacy & limits", href: "/#research-transparency" },
 ];
 
 export function SiteHeader() {

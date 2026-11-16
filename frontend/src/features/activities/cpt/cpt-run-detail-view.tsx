@@ -5,14 +5,12 @@ import {
   CircleSlash2,
   TrendingUp,
 } from "lucide-react";
-import { DemoNotice } from "@/components/feedback/demo-notice";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { participantDemoMeta } from "@/data/demo/participant";
 import { useActivitySessions } from "@/features/activities/activity-session-store";
 import { useFirebaseAuth } from "@/features/auth/firebase-auth-provider";
 import { CptSummary } from "@/features/activities/cpt/cpt-summary";
@@ -54,7 +52,7 @@ export function CptRunDetailView({ runId }: { runId: string }) {
           }
         />
 
-        {isFirebase ? null : <DemoNotice meta={participantDemoMeta} />}
+
 
         <Card>
           <CardContent className="py-6">
@@ -95,8 +93,8 @@ export function CptRunDetailView({ runId }: { runId: string }) {
           toBackend
             ? "Summary metrics from this participant's scored CPT run, calculated by the research backend from the validated trial events."
             : isFirebase
-            ? "Calculated summary metrics from this participant's scored CPT demonstration. Trial-by-trial events are not stored in Firebase."
-            : "Calculated metrics and trial-by-trial events from a scored Continuous Performance Task run stored in memory. This is a demo record, not a clinical result."
+            ? "Calculated summary metrics from this participant's scored CPT activity. Trial-by-trial events are not stored in Firebase."
+            : "Calculated metrics and trial-by-trial events from a scored Continuous Performance Task run stored in memory. This is an activity record, not a clinical result."
         }
         meta={
           <div className="flex flex-wrap items-center gap-2">
@@ -147,7 +145,7 @@ export function CptRunDetailView({ runId }: { runId: string }) {
         </Alert>
       ) : (
         <>
-          <DemoNotice meta={participantDemoMeta} />
+
           <Alert tone="info" title="In-memory record">
             This run remains available until the browser is reloaded or activity
             history is cleared. No activity data is written to browser storage.

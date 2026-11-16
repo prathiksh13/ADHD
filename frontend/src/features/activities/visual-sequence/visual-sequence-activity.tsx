@@ -1,4 +1,5 @@
 "use client";
+import { useActivityAttentionMonitor, ActivityAttentionStatus } from "@/features/attention/attention-monitor-provider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -17,7 +18,7 @@ import {
   summarizeVisualSequence,
   type VisualSequenceSummary,
 } from "@/features/activities/visual-sequence/visual-sequence-scoring";
-import { recordRun } from "@/features/activities/run-log";
+import { recordRun, markRunSaved } from "@/features/activities/run-log";
 import { useOptionalBackendSync } from "@/features/backend/backend-sync-provider";
 import type { VisualSequenceRunView } from "@/lib/backend/summary-mapping";
 import type { BackendVisualSequenceEvent } from "@/lib/backend/types";
@@ -69,6 +70,7 @@ function Summary({ summary }: { summary: VisualSequenceSummary }) {
 export function VisualSequenceActivity() {
   const sync = useOptionalBackendSync();
   const [phase, setPhase] = useState<Phase>("intro");
+  const attention = useActivityAttentionMonitor({ activityId: "visual-sequence", isActive: phase === "running" });
   const [mode, setMode] = useState<Mode>("practice");
   const [trialIndex, setTrialIndex] = useState(0);
   const [stage, setStage] = useState<Stage>("show");
@@ -102,6 +104,7 @@ export function VisualSequenceActivity() {
       setSummary(result);
 
       if (finishedMode === "practice") {
+        recordRun("visual-sequence", runId.current, result, "practice");
         setPhase("practice-done");
         return;
       }
@@ -114,7 +117,9 @@ export function VisualSequenceActivity() {
       if (sync && sync.consent.status === "granted") {
         setSave({ status: "saving" });
         try {
-          const outcome = await sync.persistVisualSequenceRun(runId.current, events.current);
+          const completedId = runId.current;
+          const outcome = await sync.persistVisualSequenceRun(completedId, events.current);
+          markRunSaved(completedId, outcome.serverRunId);
           setSave({ status: "saved", message: outcome.message });
         } catch (error) {
           setSave({
@@ -210,11 +215,13 @@ export function VisualSequenceActivity() {
   );
 
   return (
-    <div className="space-y-6">
+    <div data-attention-activity="visual-sequence" className={attention.status.metrics.visualCue && phase === "running" ? "space-y-6 attention-cue" : "space-y-6"}>
+      <ActivityAttentionStatus isActive={phase === "running"} />
+      {attention.status.metrics.visualCue && phase === "running" ? <p role="status" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">Focus Alert — Eyes back on the activity</p> : null}
       <PageHeader
         eyebrow="Cognitive activity"
         title="Visual Sequence Memory"
-        description="Watch squares light up one at a time, then tap them back in the same order. The sequences get longer. It measures short-term visual memory. This is a demonstration task, not a clinical assessment, and it needs you to see the screen."
+        description="Watch squares light up one at a time, then tap them back in the same order. The sequences get longer. It measures short-term visual memory. This is a research task, not a clinical assessment, and it needs you to see the screen."
       />
 
       {phase === "intro" ? (
@@ -229,10 +236,10 @@ export function VisualSequenceActivity() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-ink-muted">
-              A short practice of {VISUAL_SEQUENCE_PRACTICE_TRIALS.length} sequence comes first, then{" "}
-              {VISUAL_SEQUENCE_SCORED_TRIALS.length} scored sequences of 3 to 6 squares. Practice is never saved.
+              Choose {VISUAL_SEQUENCE_PRACTICE_TRIALS.length} sequence comes first, then{" "}
+              {VISUAL_SEQUENCE_SCORED_TRIALS.length} scored sequences of 3 to 6 squares. Practice is shown in visit history and excluded from scored progress.
             </p>
-            <Button onClick={() => start("practice")}>Start practice</Button>
+            <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => start("practice")}>Trial activity (practice)</Button><Button onClick={() => start("scored")}>Start scored task</Button></div>
           </CardContent>
         </Card>
       ) : null}
@@ -271,7 +278,7 @@ export function VisualSequenceActivity() {
         <Card>
           <CardHeader>
             <CardTitle>Practice complete</CardTitle>
-            <CardDescription>Practice results are not saved.</CardDescription>
+            <CardDescription>Trial results appear in visit history and are excluded from scored progress.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Summary summary={summary} />
@@ -292,7 +299,7 @@ export function VisualSequenceActivity() {
             <CardDescription>
               {sync
                 ? "With your research consent the run is sent to the research backend, which checks the answers and calculates the results."
-                : "These results live in this browser tab only and are cleared when you reload."}
+                : "Enable Firebase saving above to keep this summary in your account. Saved results appear in activity history, progress, sessions and Digital Twin."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -315,7 +322,7 @@ export function VisualSequenceActivity() {
               </Alert>
             ) : null}
             <p className="text-xs text-ink-subtle">
-              Visual Sequence results are kept separate from the CPT-based Digital Twin for now.
+Scored results update your progress and Digital Twin activity view.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => start("scored")}>Run again</Button>
@@ -364,7 +371,7 @@ function HistoryCard({
         <CardDescription>
           {serverRuns !== null
             ? "Scored runs saved to the research backend with your consent, newest first."
-            : "Runs from this visit only. In demonstration mode nothing is stored, so this list is cleared when you reload."}
+            : "This list shows current-visit runs. View activity history for results saved to your account."}
         </CardDescription>
       </CardHeader>
       <CardContent>

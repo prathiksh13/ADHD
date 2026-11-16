@@ -217,7 +217,6 @@ function toCptRunSummary(
     mode: "scored",
     completedAt,
     events: [],
-    isDemo: true,
     ...metrics,
   };
 }

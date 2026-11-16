@@ -1,15 +1,71 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from math import isfinite
 from typing import Any
 from uuid import UUID, uuid4
 
 from app.core.errors import ApiError
 from app.repositories.firestore import Repository, path
+from app.services.catalog import CATALOG
 from app.services.cpt_scoring import aggregate_cpt_summaries
+from app.services.twin_baseline import personal_baseline
 from app.services.twin_insights import twin_v2_insights
 
-TWIN_ALGORITHM_VERSION = "cpt-descriptive-twin-v2"
+TWIN_ALGORITHM_VERSION = "activity-descriptive-twin-v4"
+
+
+def build_activity_profiles(summaries: list[Any]) -> list[dict[str, Any]]:
+    """Keep task measurements separate; never invent a cross-task clinical score."""
+    profiles = []
+    for activity in CATALOG:
+        code = activity["activity_code"]
+        records = sorted(
+            [item for item in summaries if item.get("activity_code", "cpt") == code],
+            key=lambda item: (_value(item, "created_at"), str(_value(item, "id"))),
+        )
+        if not records:
+            continue
+        first, latest = records[0], records[-1]
+        # Only compare records produced by the same scoring implementation.
+        compatible = first.get("calculation_version") == latest.get("calculation_version")
+        measurements = []
+        for key, value in _value(latest, "metrics").items():
+            if isinstance(value, bool) or not isinstance(value, int | float) or not isfinite(value):
+                continue
+            baseline = _value(first, "metrics").get(key)
+            valid_baseline = (
+                compatible
+                and isinstance(baseline, int | float)
+                and not isinstance(baseline, bool)
+                and isfinite(baseline)
+            )
+            measurements.append(
+                {
+                    "key": key,
+                    "latest": round(value, 3),
+                    "baseline": round(baseline, 3) if valid_baseline else None,
+                    "change": round(value - baseline, 3) if len(records) >= 2 and valid_baseline else None,
+                }
+            )
+        profiles.append(
+            {
+                "activity_code": code,
+                "title": activity["title"],
+                "run_count": len(records),
+                "status": "available" if len(records) >= 2 and compatible else "insufficient_data",
+                "baseline_at": _value(first, "created_at").isoformat(),
+                "latest_at": _value(latest, "created_at").isoformat(),
+                "source_summary_ids": [str(_value(item, "id")) for item in records],
+                "calculation_version": latest.get("calculation_version"),
+                "data_provenance": latest.get("data_provenance"),
+                "measurements": measurements,
+                "personal_baseline": personal_baseline(records),
+                "quality_flags": (["fewer_than_two_scored_observations"] if len(records) < 2 else [])
+                + (["scoring_version_changed"] if not compatible else []),
+            }
+        )
+    return profiles
 
 
 def _value(record: Any, key: str) -> Any:
@@ -94,16 +150,24 @@ def rebuild_digital_twin(
     audit_id = str(uuid4())
 
     def write(tx):
-        summaries = [
-            item
-            for item in tx.list(path("subjects", sid, "activitySummaries"))
-            if item.get("activity_code", "cpt") == "cpt"
-        ]
+        summaries = tx.list(path("subjects", sid, "activitySummaries"))
         summaries.sort(key=lambda item: (item.created_at, item.id))
-        snapshot = build_twin_snapshot(summaries)
-        quality_flags = [] if len(summaries) >= 2 else ["fewer_than_two_scored_observations"]
+        cpt_summaries = [item for item in summaries if item.get("activity_code", "cpt") == "cpt"]
+        snapshot = build_twin_snapshot(cpt_summaries)
+        profiles = build_activity_profiles(summaries)
+        snapshot["activity_profiles"] = profiles
+        snapshot["total_summary_count"] = sum(item["run_count"] for item in profiles)
+        snapshot["status"] = (
+            "available" if any(item["status"] == "available" for item in profiles) else "insufficient_data"
+        )
+        snapshot["algorithm_version"] = TWIN_ALGORITHM_VERSION
+        quality_flags = (
+            [] if snapshot["status"] == "available" else ["fewer_than_two_comparable_observations"]
+        )
         current_path = path("subjects", sid, "digitalTwin", "current")
         current = tx.get(current_path)
+        if current and current.get("profile") == snapshot:
+            return {**current, "id": sid}
         version = (current.get("current_version", 0) if current else 0) + 1
         record = {
             "current_version": version,
